@@ -1,0 +1,9 @@
+* text=auto
+*.m text
+*.cpp text
+*.txt text
+
+*.mat binary
+*.mexw32 binary
+*.mexw64 binary
+*.xls binary

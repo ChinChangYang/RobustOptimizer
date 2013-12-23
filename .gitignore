@@ -1,0 +1,7 @@
+*.asv
+*.o
+*.exe
+*.dll
+copyright/
+.metadata/
+out/
