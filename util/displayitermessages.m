@@ -21,7 +21,19 @@ fPrev = f;
 
 if nargin >= 7
 	[D, ~] = size(X);
-	if D >= 2
+	[~, ~, cD] = size(XX);
+	
+	if D >= 2 && cD >= 2
+		for i = 1 : cD
+			subplot(1, cD, i);
+			hold off;
+			contour(XX(:, :, i), YY(:, :, i), ZZ(:, :, i), 7);
+			hold on;
+			plot(X(i,:), X(i+1,:), 'kx', 'MarkerSize', 12, 'LineWidth', 2);
+			plot(U(i,:), U(i+1,:), 'rx', 'MarkerSize', 12, 'LineWidth', 2);
+			pause(0.01);
+		end
+	elseif D >= 2 && cD == 1
 		hold off;
 		contour(XX, YY, ZZ, 7);
 		hold on;

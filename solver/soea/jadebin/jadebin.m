@@ -82,7 +82,7 @@ out = initoutput(RecordPoint, D, NP, maxfunevals);
 
 % Initialize contour data
 if isDisplayIter
-	[XX, YY, ZZ] = preparecontourdata(D, lb, ub, fitfun);
+	[XX, YY, ZZ] = advcontourdata(D, lb, ub, fitfun);
 end
 
 % Initialize population
