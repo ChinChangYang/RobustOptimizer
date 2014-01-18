@@ -2,7 +2,7 @@ function plot_maxminmax_func(fitfun)
 tic;
 
 if nargin == 0
-	fitfun = 'maxminmax_f8';
+	fitfun = 'maxminmax_f24';
 end
 
 rng('default');
@@ -118,6 +118,8 @@ print(sprintf('%s_3', fitfun), '-dtiff');
 sample = 30;
 vx = linspace(lb(1), ub(1), sample);
 f = zeros(1, numel(vx));
+yoptim = zeros(1, numel(vx));
+zoptim = zeros(1, numel(vx));
 
 for i = 1 : numel(vx)	
 	fitfunXi = @(y, z) feval(fitfun, vx(i), y, z);
@@ -125,7 +127,7 @@ for i = 1 : numel(vx)
 	defaultDF = 15;
 	options1.dimensionFactor = defaultDF;
 	options2.dimensionFactor = defaultDF;
-	[~, ~, f(i), out] = minmaxtcjadebin(fitfunXi, dfmaxfunevals, ...
+	[yoptim(i), zoptim(i), f(i), out] = minmaxtcjadebin(fitfunXi, dfmaxfunevals, ...
 		lb(2), ub(2), lb(3), ub(3), options1, options2);
 	
 	factor = 1;
@@ -133,7 +135,7 @@ for i = 1 : numel(vx)
 		factor = 2 * factor;
 		options1.dimensionFactor = round(defaultDF * factor ^ 0.25);
 		options2.dimensionFactor = round(defaultDF * factor ^ 0.25);
-		[~, ~, f(i), out] = minmaxtcjadebin(fitfunXi, round(dfmaxfunevals * factor), ...
+		[yoptim(i), zoptim(i), f(i), out] = minmaxtcjadebin(fitfunXi, round(dfmaxfunevals * factor), ...
 			lb(2), ub(2), lb(3), ub(3), options1, options2);
 	end
 	
@@ -160,23 +162,24 @@ FF = zeros(numel(vx), numel(vz));
 
 for i = 1 : numel(vx)
 	for j = 1 : numel(vz)		
-		fitfunXiZj = @(y) feval(fitfun, XX(i, j), y, ZZ(i, j));
-		dfmaxfunevals = 5e3;
-		defaultDF = 20;
-		options.dimensionFactor = defaultDF;
-		[~, FF(i, j), out] = jadebin(fitfunXiZj, lb(2), ub(2), dfmaxfunevals, options);	
-		
-		factor = 1;
-		while max(out.xstd(:, end)) > 1e-2 && factor < 100
-			factor = 2 * factor;
-			maxfunevals = dfmaxfunevals * factor;
-			options.dimensionFactor = round(defaultDF * factor ^ 0.25);
-			[~, FF(i, j), out] = jadebin(fitfunXiZj, lb(2), ub(2), maxfunevals, options);
-		end
-		
-		if factor > 1
-			fprintf('Min converged at factor: %d\n', factor);
-		end	
+		FF(i, j) = feval(fitfun, XX(i, j), yoptim(j), ZZ(i, j));
+% 		fitfunXiZj = @(y) feval(fitfun, XX(i, j), y, ZZ(i, j));
+% 		dfmaxfunevals = 5e3;
+% 		defaultDF = 20;
+% 		options.dimensionFactor = defaultDF;
+% 		[~, FF(i, j), out] = jadebin(fitfunXiZj, lb(2), ub(2), dfmaxfunevals, options);	
+% 		
+% 		factor = 1;
+% 		while max(out.xstd(:, end)) > 1e-2 && factor < 100
+% 			factor = 2 * factor;
+% 			maxfunevals = dfmaxfunevals * factor;
+% 			options.dimensionFactor = round(defaultDF * factor ^ 0.25);
+% 			[~, FF(i, j), out] = jadebin(fitfunXiZj, lb(2), ub(2), maxfunevals, options);
+% 		end
+% 		
+% 		if factor > 1
+% 			fprintf('Min converged at factor: %d\n', factor);
+% 		end	
 	end
 end
 

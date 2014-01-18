@@ -18,9 +18,9 @@ y = y - shift;
 z = z - shift;
 X = x;
 Y = x + y;
-Z = y + z;
+Z = x + y + z;
 a = 1;
-b = 2;
+b = 1;
 c = 2;
 f = - a * sum(X.^2) ...
 	+ b * rastrigin(Y) ...

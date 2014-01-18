@@ -18,9 +18,9 @@ y = y - shift;
 z = z - shift;
 X = x;
 Y = x + y;
-Z = x + y + z;
+Z = y + z;
 a = 1;
-b = 1;
+b = 2;
 c = 2;
 f = - a * sum(X.^2) ...
 	+ b * sum(Y.^2) ...
