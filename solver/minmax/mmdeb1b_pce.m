@@ -1,14 +1,14 @@
-function [xbest1, xbest2, fbest, out] = mmdeb1b_c(fitfun, ...
+function [xbest1, xbest2, fbest, out] = mmdeb1b_pce(fitfun, ...
 	maxfunevals, lb1, ub1, lb2, ub2, options1, options2)
-% MMDEB1B_C Sequential Min-Max DE/best/1/bin with finding
+% MMDEB1B_PCE Sequential Min-Max DE/best/1/bin with finding
 % constraint boundary
-% MMDEB1B_C(fitfun, maxfunevals1, lb1, ub1, lb2, ub2) minimizes the
+% MMDEB1B_PCE(fitfun, maxfunevals1, lb1, ub1, lb2, ub2) minimizes the
 % function fitfun1 associated with a maximizer among box limitations [lb1,
 % ub1] of minimizers and [lb2, ub2] of maximizers for the maximal function
 % evaluations maxfunevals1.
-% MMDEB1B_C(..., options1) minimizes the function with the given
+% MMDEB1B_PCE(..., options1) minimizes the function with the given
 % options Options1 for the 1st layer.
-% MMDEB1B_C(..., options1, options2) minimize the function with the
+% MMDEB1B_PCE(..., options1, options2) minimize the function with the
 % given options Options2 for the 2nd layer.
 if nargin <= 6
 	options1 = [];
