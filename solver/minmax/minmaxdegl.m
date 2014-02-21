@@ -244,11 +244,13 @@ if isDisplayIter
 	
 	display_inner_info(innerState);
 	
+	set(gcf, 'PaperPositionMode', 'auto');
+	set(1, 'Position', [160 120 320 240]);
 	retry_print = true;
 	while retry_print
 		try
 			filename = sprintf('minmaxdegl_%s_%d.eps', fitfun, countiter);
-			print(filename, '-depsc');
+			print('-depsc', filename);
 			retry_print = false;
 		catch ME
 			if strcmp(ME.identifier, 'MATLAB:fileio:cantOpenFileNoPermission')
