@@ -33,7 +33,7 @@ defaultOptions.initial.cm = []; % Constraint violation measure
 defaultOptions.initial.nc = []; % Number of violated constraints
 
 options = setdefoptions(options, defaultOptions);
-dimensionFactor = max(1, options.dimensionFactor);
+dimensionFactor = options.dimensionFactor;
 delta_CR = options.delta_CR;
 delta_F = options.delta_F;
 p = options.p;
@@ -68,7 +68,7 @@ end
 
 D = numel(lb);
 if isempty(X)
-	NP = ceil(dimensionFactor * D);
+	NP = max(1, ceil(dimensionFactor * D));
 else
 	[~, NP] = size(X);
 end

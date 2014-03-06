@@ -187,7 +187,7 @@ while true
 			r3 = floor(1 + NP * rand);
 		end
 		
-		V(:, i) = X(:, r1) + (F + 0.01 * randn) * (X(:, r2) - X(:, r3));
+		V(:, i) = X(:, r1) + F * (X(:, r2) - X(:, r3));
 	end
 	
 	for i = 1 : NP
