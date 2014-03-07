@@ -1,5 +1,5 @@
-function [xmin, fmin, out] = derand1bin(fitfun, lb, ub, maxfunevals, options)
-% DERAND1BIN DE/rand/1/bin with reflection constraint handling
+function [xmin, fmin, out] = cderand1bin(fitfun, lb, ub, maxfunevals, options)
+% DERAND1BIN DE/rand/1/bin with constraint handling
 % DERAND1BIN(fitfun, lb, ub, maxfunevals) minimize the function fitfun in
 % box constraints [lb, ub] with the maximal function evaluations
 % maxfunevals.
@@ -198,25 +198,6 @@ while true
 				U(j, i) = V(j, i);
 			else
 				U(j, i) = X(j, i);
-			end
-		end
-	end
-	
-	% Constraint reflection
-	for i = 1 : NP
-		for j = 1 : D
-			for k = 1 : 3
-				if U(j, i) < lb(j)
-					U(j, i) = 2 * lb(j) - U(j, i);
-				end
-				
-				if U(j, i) > ub(j)
-					U(j, i) = 2 * ub(j) - U(j, i);
-				end
-				
-				if U(j, i) >= lb(j) && U(j, i) <= ub(j)
-					break;
-				end
 			end
 		end
 	end
