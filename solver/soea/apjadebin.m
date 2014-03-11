@@ -1,24 +1,36 @@
-function [xmin, fmin, out] = derand1bin(fitfun, lb, ub, maxfunevals, options)
-% DERAND1BIN DE/rand/1/bin with reflection constraint handling
-% DERAND1BIN(fitfun, lb, ub, maxfunevals) minimize the function fitfun in
+function [xmin, fmin, out] = apjadebin(fitfun, lb, ub, maxfunevals, options)
+% JADEBIN JADE algorithm with adaptive population size
+% JADEBIN(fitfun, lb, ub, maxfunevals) minimize the function fitfun in
 % box constraints [lb, ub] with the maximal function evaluations
 % maxfunevals.
-% DERAND1BIN(..., options) minimize the function by solver options.
+% JADEBIN(..., options) minimize the function by solver options.
 if nargin <= 4
 	options = [];
 end
 
 defaultOptions.dimensionFactor = 5;
-defaultOptions.F = 0.7;
+defaultOptions.F = 0.9;
 defaultOptions.CR = 0.5;
+defaultOptions.delta_CR = 0.1;
+defaultOptions.delta_F = 0.1;
+defaultOptions.p = 0.05;
+defaultOptions.w = 0.1;
 defaultOptions.Display = 'off';
 defaultOptions.RecordPoint = 100;
 defaultOptions.ftarget = -Inf;
-defaultOptions.TolFun = eps;
-defaultOptions.TolX = 100 * eps;
+defaultOptions.TolFun = 0;
+defaultOptions.TolX = 0;
 defaultOptions.TolStagnationIteration = 20;
+defaultOptions.initPopFac = 5;
+defaultOptions.MovingAverage = 20;
+defaultOptions.Ptarget = 1e-4;
+defaultOptions.NP_MIN = 48;
+defaultOptions.PopFac = 0.98;
 defaultOptions.initial.X = [];
 defaultOptions.initial.f = [];
+defaultOptions.initial.A = [];
+defaultOptions.initial.mu_CR = [];
+defaultOptions.initial.mu_F = [];
 
 defaultOptions.TolCon = 1e-6;
 defaultOptions.nonlcon = [];
@@ -26,9 +38,10 @@ defaultOptions.initial.cm = []; % Constraint violation measure
 defaultOptions.initial.nc = []; % Number of violated constraints
 
 options = setdefoptions(options, defaultOptions);
-dimensionFactor = options.dimensionFactor;
-CR = options.CR;
-F = options.F;
+delta_CR = options.delta_CR;
+delta_F = options.delta_F;
+p = options.p;
+w = options.w;
 isDisplayIter = strcmp(options.Display, 'iter');
 RecordPoint = max(0, floor(options.RecordPoint));
 ftarget = options.ftarget;
@@ -37,23 +50,48 @@ TolX = options.TolX;
 TolStagnationIteration = options.TolStagnationIteration;
 TolCon = options.TolCon;
 nonlcon = options.nonlcon;
+M = options.MovingAverage;
+Ptarget = options.Ptarget;
+NP_MIN = options.NP_MIN;
+initPopFac = options.initPopFac;
+PopFac = options.PopFac;
 
 if ~isempty(options.initial)
 	options.initial = setdefoptions(options.initial, defaultOptions.initial);
 	X = options.initial.X;
 	f = options.initial.f;
+	A = options.initial.A;
+	mu_CR = options.initial.mu_CR;
+	mu_F = options.initial.mu_F;
 	cm = options.initial.cm;
 	nc = options.initial.nc;
 else
 	X = [];
 	f = [];
+	A = [];
+	mu_CR = [];
+	mu_F = [];
 	cm = [];
 	nc = [];
 end
 
 D = numel(lb);
 if isempty(X)
-	NP = ceil(dimensionFactor * D);
+	if D == 10
+		T = 0.9674;
+	elseif D == 30
+		T = 0.9874;
+	else
+		T = 0.9885;
+	end
+	
+	if D == 10 || D == 30 || D == 50
+		NP = floor(maxfunevals / ...
+			(log(Ptarget) - log(sqrt(mean(ub - lb)^2/12))) * log(T));
+		NP = max(NP, NP_MIN);
+	else
+		NP = ceil(D * initPopFac);
+	end
 else
 	[~, NP] = size(X);
 end
@@ -63,11 +101,13 @@ counteval = 0;
 countcon = 0;
 countiter = 1;
 countStagnation = 0;
-out = initoutput(RecordPoint, D, NP, maxfunevals);
+out = initoutput(RecordPoint, D, NP, maxfunevals, ...
+	'NP', ...
+	'converg_rate');
 
 % Initialize contour data
 if isDisplayIter
-	[XX, YY, ZZ] = preparecontourdata(D, lb, ub, fitfun);
+	[XX, YY, ZZ] = advcontourdata(D, lb, ub, fitfun);
 end
 
 % Initialize population
@@ -86,6 +126,12 @@ if isempty(X)
 	end
 end
 
+% Initialize archive
+if isempty(A)
+	A = zeros(D, 2 * NP);
+	A(:, 1 : NP) = X;
+end
+
 % Constraint violation measure
 if isempty(cm) || isempty(nc)
 	cm = zeros(1, NP);
@@ -98,7 +144,7 @@ if isempty(cm) || isempty(nc)
 		nc(i) = sum(clb > 0) + sum(cub > 0);
 	end
 	
-	if ~isempty(nonlcon)
+	if ~isempty(nonlcon)		
 		for i = 1 : NP
 			[c, ceq] = feval(nonlcon, X(:, i));
 			countcon = countcon + 1;
@@ -145,19 +191,39 @@ X = X(:, pfidx);
 cm = cm(pfidx);
 nc = nc(pfidx);
 
+% mu_F
+if isempty(mu_F)
+	mu_F = options.F;
+end
+
+% mu_CR
+if isempty(mu_CR)
+	mu_CR = options.CR;
+end
+
 % Initialize variables
 V = X;
 U = X;
+pbest_size = p * NP;
 cm_u = cm;
 nc_u = nc;
 
 % Display
 if isDisplayIter
-	displayitermessages(X, U, f, countiter, XX, YY, ZZ);
+	displayitermessages(...
+		X, U, f, countiter, XX, YY, ZZ, 'mu_F', mu_F, 'mu_CR', mu_CR);
 end
 
+% Convergence speed
+xstd_new = std(X, 0, 2);
+Sconvrate = zeros(1, M);
+SconvrateCounter = 0;
+converg_rate = 1;
+
 % Record
-out = updateoutput(out, X, f, counteval);
+out = updateoutput(out, X, f, counteval, ...
+	'NP', NP, ...
+	'converg_rate', converg_rate);
 
 % Iteration counter
 countiter = countiter + 1;
@@ -171,30 +237,79 @@ while true
 	solutionconvergence = isConverged(X, TolX);
 	stagnation = countStagnation >= TolStagnationIteration;
 	
-	% Convergence conditions
+	% Convergence conditions	
 	if outofmaxfunevals || reachftarget || fitnessconvergence || ...
 			solutionconvergence || stagnation
 		break;
 	end
 	
-	% Mutation
-	for i = 1 : NP
-		r1 = floor(1 + NP * rand);
-		r2 = floor(1 + NP * rand);
-		r3 = r2;
-		
-		while r2 == r3
-			r3 = floor(1 + NP * rand);
+	% Scaling factor and crossover rate
+	S_F = zeros(1, NP);
+	S_CR = zeros(1, NP);
+	CR = mu_CR + delta_CR * randn(1, NP);
+	CR(CR > 1) = 1;
+	CR(CR < 0) = 0;
+	F = cauchyrnd(mu_F, delta_F, NP, 1);
+	F(F > 1) = 1;
+	
+	for retry = 1 : 3
+		if all(F > 0)
+			break;
 		end
 		
-		V(:, i) = X(:, r1) + F * (X(:, r2) - X(:, r3));
+		F(F <= 0) = cauchyrnd(mu_F, delta_F, sum(F <= 0), 1);
+		F(F > 1) = 1;
+	end
+	
+	F(F <= 0) = 0.01 * mu_F * (1 + rand);
+	
+	A_Counter = 0;
+	XA = [X, A];
+	
+	% Mutation
+	for i = 1 : NP		
+		for checkRetry = 1 : 3			
+			% Generate pbest_idx
+			for retry = 1 : 3
+				pbest_idx = max(1, ceil(rand * pbest_size));
+				if ~all(X(:, pbest_idx) == X(:, i))
+					break;
+				end
+			end
+			
+			% Generate r1
+			for retry = 1 : 3
+				r1 = floor(1 + NP * rand);
+				if i ~= r1
+					break;
+				end
+			end
+			
+			% Generate r2
+			for retry = 1 : 3
+				r2 = floor(1 + 2 * NP * rand);
+				if ~(all(X(:, i) == XA(:, r2)) || all(X(:, r1) == XA(:, r2)))
+					break;
+				end
+			end
+							
+% 			V(:, i) = X(:, pbest_idx) + F(i) .* ...
+% 				(X(:, i) - X(:, i) + X(:, r1) - XA(:, r2));
+			V(:, i) = X(:, i) + F(i) .* ...
+				(X(:, pbest_idx) - X(:, i) + X(:, r1) - XA(:, r2));
+			
+			% Check boundary
+			if all(V(:, i) > lb) && all(V(:, i) < ub)
+				break;
+			end
+		end
 	end
 	
 	for i = 1 : NP
 		% Binominal Crossover
 		jrand = floor(1 + D * rand);
 		for j = 1 : D
-			if rand < CR || j == jrand
+			if rand < CR(i) || j == jrand
 				U(j, i) = V(j, i);
 			else
 				U(j, i) = X(j, i);
@@ -223,10 +338,12 @@ while true
 	
 	% Display
 	if isDisplayIter
-		displayitermessages(X, U, f, countiter, XX, YY, ZZ);
+		displayitermessages(...
+			X, U, f, countiter, XX, YY, ZZ, ...
+			'mu_F', mu_F, 'mu_CR', mu_CR);
 	end
 	
-	% Constraint violation measure
+	% Constraint violation measure		
 	for i = 1 : NP
 		clb = lb - U(:, i);
 		cub = U(:, i) - ub;
@@ -234,7 +351,7 @@ while true
 		nc_u(i) = sum(clb > 0) + sum(cub > 0);
 	end
 	
-	if ~isempty(nonlcon)
+	if ~isempty(nonlcon)		
 		for i = 1 : NP
 			[c, ceq] = feval(nonlcon, U(:, i));
 			countcon = countcon + 1;
@@ -271,14 +388,58 @@ while true
 		
 		if u_selected
 			cm(i) = cm_u(i);
-			nc(i) = nc_u(i);
+			nc(i) = nc_u(i);			
 			f(i) = fui;
 			X(:, i) = U(:, i);
+			A(:, NP + A_Counter + 1) = U(:, i);
+			S_CR(A_Counter + 1) = CR(i);
+			S_F(A_Counter + 1) = F(i);
+			A_Counter = A_Counter + 1;
 			FailedIteration = false;
 		end
 	end
 	
-	% Sort
+	% Update archive
+	rand_idx = randperm(NP + A_Counter);
+	A(:, 1 : NP) = A(:, rand_idx(1 : NP));
+	
+	% Update CR and F
+	if A_Counter > 0
+		mu_CR = (1-w) * mu_CR + w * mean(S_CR(1 : A_Counter));
+		mu_F = (1-w) * mu_F + w * sum(S_F(1 : A_Counter).^2) / sum(S_F(1 : A_Counter));
+	else
+		mu_F = (1-w) * mu_F;
+	end
+	
+	% Convergence speed
+	xstd_prev = xstd_new;
+	xstd_new = std(X, 0, 2);
+	converg_rate = mean(xstd_new ./ (xstd_prev + eps));
+	
+	if SconvrateCounter < M
+		Sconvrate(SconvrateCounter + 1) = converg_rate;		
+		SconvrateCounter = SconvrateCounter + 1;
+	else
+		Sconvrate(1:end-1) = Sconvrate(2:end);
+		Sconvrate(end) = converg_rate;
+		convrate_avg = geomean(Sconvrate);
+		m = (log(Ptarget) - log(mean(xstd_new))) / (log(convrate_avg) + eps);
+		
+		if m > 0 && m > (maxfunevals - counteval) / NP
+			NP_prev = NP;
+			NP = max(floor(PopFac * NP_prev), NP_MIN);
+			X = X(:, 1 : NP);
+			V = V(:, 1 : NP);
+			U = U(:, 1 : NP);
+			f = f(1 : NP);
+			pf = pf(1 : NP);
+			cm = cm(1 : NP);
+			nc = nc(1 : NP);
+			A = A(:, 1 : 2 * NP);
+		end
+	end
+	
+	% Sort	
 	nf = f;
 	nf(isinf(nf)) = [];
 	nfmax = max(nf);
@@ -302,7 +463,9 @@ while true
 	nc = nc(pfidx);
 	
 	% Record
-	out = updateoutput(out, X, f, counteval);
+	out = updateoutput(out, X, f, counteval, ...
+		'NP', NP, ...
+		'converg_rate', converg_rate);
 	
 	% Iteration counter
 	countiter = countiter + 1;
@@ -323,10 +486,15 @@ if fmin < out.bestever.fmin
 	out.bestever.xmin = xmin;
 end
 
+final.A = A;
+final.mu_F = mu_F;
+final.mu_CR = mu_CR;
 final.cm = cm;
 final.nc = nc;
 
 out = finishoutput(out, X, f, counteval, ...
 	'final', final, ...
-	'countcon', countcon);
+	'countcon', countcon, ...
+	'NP', NP, ...
+	'converg_rate', converg_rate);
 end

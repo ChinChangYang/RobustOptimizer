@@ -8,7 +8,6 @@ if nargin <= 4
 	options = [];
 end
 
-defaultOptions.initPopFac = 5;
 defaultOptions.F = 0.7;
 defaultOptions.CR = 0.5;
 defaultOptions.Display = 'off';
@@ -17,9 +16,10 @@ defaultOptions.ftarget = -Inf;
 defaultOptions.TolFun = 0;
 defaultOptions.TolX = 0;
 defaultOptions.TolStagnationIteration = 20;
+defaultOptions.initPopFac = 5;
 defaultOptions.MovingAverage = 20;
 defaultOptions.Ptarget = 1e-4;
-defaultOptions.NP_MIN = 21;
+defaultOptions.NP_MIN = 48;
 defaultOptions.PopFac = 0.98;
 defaultOptions.initial.X = [];
 defaultOptions.initial.f = [];
@@ -312,13 +312,6 @@ while true
 		end
 	end
 	
-	% Stagnation iteration
-	if FailedIteration
-		countStagnation = countStagnation + 1;
-	else
-		countStagnation = 0;
-	end	
-	
 	% Convergence speed
 	xstd_prev = xstd_new;
 	xstd_new = std(X, 0, 2);
@@ -344,7 +337,6 @@ while true
 			pf = pf(randidx);
 			cm = cm(randidx);
 			nc = nc(randidx);
-% 			SconvrateCounter = 0;
 		end
 	end
 	
@@ -378,6 +370,13 @@ while true
 	
 	% Iteration counter
 	countiter = countiter + 1;
+	
+	% Stagnation iteration
+	if FailedIteration
+		countStagnation = countStagnation + 1;
+	else
+		countStagnation = 0;
+	end	
 end
 
 fmin = f(1);
