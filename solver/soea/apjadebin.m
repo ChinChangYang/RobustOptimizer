@@ -108,8 +108,7 @@ end
 
 % Initialize archive
 if isempty(A)
-	A = zeros(D, 2 * NP);
-	A(:, 1 : NP) = X(:, 1 : NP);
+	A = X;
 end
 
 % Constraint violation measure
