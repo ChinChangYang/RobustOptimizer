@@ -4,24 +4,25 @@ function testspecificrun
 startTime = tic;
 close all;
 solver = 'apjadebin';
-fitfun = 'cec13_f12';
-D = 30;
+fitfun = 'cec13_f19';
+D = 50;
 maxfunevals = D * 1e4;
 solverOptions.nonlcon = [];
 solverOptions.dimensionFactor = 5;
-solverOptions.initPopFac = 5;
-solverOptions.MovingAverage = 20;
-solverOptions.Ptarget = 1e-4;
-solverOptions.NP_MIN = 48;
-solverOptions.PopFac = 0.98;
+solverOptions.MovingAverage = 10;
+solverOptions.Ptarget = 1e-6;
+solverOptions.NP_MIN = D;
+solverOptions.NP_MAX = 4000;
+solverOptions.r = 0.1;
 solverOptions.F = 0.7;
 solverOptions.CR = 0.5;
 solverOptions.R = 0.5;
 solverOptions.TolX = 0;
 solverOptions.TolFun = 0;
+solverOptions.TolStagnationIteration = 60;
 solverOptions.ftarget = -Inf;
 solverOptions.Restart = 0;
-solverOptions.Display = 'off';
+solverOptions.Display = 'iter';
 solverOptions.RecordPoint = 1000;
 solverOptions.Noise = false;
 % lb = -5e50 * ones(D, 1);
@@ -159,7 +160,7 @@ end
 
 if isfield(out, 'NP')
 	figure;
-	plot(out.fes, out.NP);
+	semilogy(out.fes, out.NP);
 	title(sprintf('Solve %s by %s', fitfun, solver));
 	xlabel('FEs');
 	ylabel('NP');
@@ -171,6 +172,14 @@ if isfield(out, 'converg_rate')
 	title(sprintf('Solve %s by %s', fitfun, solver));
 	xlabel('FEs');
 	ylabel('converg rate');
+end
+
+if isfield(out, 'm')
+	figure;
+	plot(out.fes, out.m);
+	title(sprintf('Solve %s by %s', fitfun, solver));
+	xlabel('FEs');
+	ylabel('m');
 end
 
 toc(startTime);
