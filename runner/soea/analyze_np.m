@@ -1,4 +1,3 @@
-% function analyze_np
 if matlabpool('size') == 0
     matlabpool('open');
 end
@@ -7,11 +6,15 @@ clear;
 close all;
 startTime = tic;
 date = datestr(now, 'yyyymmddHHMM');
-RUN = 51;
+RUN = 31;
 NP = [4,6,9,14,21,32,48,72,108,162,243,365,548,822,1233,1850,2775,4163];
-% NP = [4, 4163];
+% NP = 100;
+% NP = [4,9,21,48,108,243,548,1233,2775];
+% MaxFEs = [3e4, 3e5, 3e6];
+% MaxFEs = [3e4, 3e5];
+MaxFEs = 3e4;
 % D = [10, 30, 50];
-D = 30;
+D = 10;
 fitfun = {'cec13_f1', 'cec13_f2', 'cec13_f3', 'cec13_f4', ...
 		'cec13_f5', 'cec13_f6', 'cec13_f7', 'cec13_f8', 'cec13_f9', ...
 		'cec13_f10', 'cec13_f11', 'cec13_f12', 'cec13_f13', ...
@@ -19,81 +22,100 @@ fitfun = {'cec13_f1', 'cec13_f2', 'cec13_f3', 'cec13_f4', ...
 		'cec13_f18', 'cec13_f19', 'cec13_f20', 'cec13_f21', ...
 		'cec13_f22', 'cec13_f23', 'cec13_f24', 'cec13_f25', ...
 		'cec13_f26', 'cec13_f27', 'cec13_f28'};
-results = zeros(RUN, numel(fitfun), numel(NP), numel(D));
-solver = 'derand1bin';
+% fitfun = {'cec13_f1', 'cec13_f19'};
+error = zeros(RUN, numel(fitfun), numel(NP), numel(MaxFEs), numel(D));
+xstd = zeros(RUN, numel(fitfun), numel(NP), numel(MaxFEs), numel(D));
+solver = 'jadebin';
 solverOptions.nonlcon = [];
 solverOptions.F = 0.7;
 solverOptions.CR = 0.5;
 solverOptions.TolX = 0;
 solverOptions.TolFun = 0;
-solverOptions.TolStagnationIteration = 60;
+solverOptions.TolStagnationIteration = 100;
 solverOptions.ftarget = -Inf;
 solverOptions.Display = 'off';
-solverOptions.RecordPoint = 0;
+solverOptions.RecordPoint = 1;
 
 for Di = 1 : numel(D)
 	lb = -100 * ones(D(Di), 1);
 	ub = 100 * ones(D(Di), 1);
-	maxfunevals = D(Di) * 1e4;
-	for NPi = 1 : numel(NP)
-		solverOptions.dimensionFactor = NP(NPi)/D(Di);
-		for Fi = 1 : numel(fitfun)
-			fitfuni = fitfun{Fi};
-			fprintf('NP: %d; fitfun: %s\n', NP(NPi), fitfuni);
-			parfor RUNi = 1 : RUN
-				[~, fmin, ~] = ...
-					feval(solver, fitfuni, lb, ub, maxfunevals, solverOptions);
-				if fmin <= 1e-8
-					fmin = 1e-8;
+	for Mi = 1 : numel(MaxFEs)
+		MaxFEsi = MaxFEs(Mi);
+		for NPi = 1 : numel(NP)
+			solverOptions.dimensionFactor = NP(NPi)/D(Di);
+			for Fi = 1 : numel(fitfun)
+				fitfuni = fitfun{Fi};
+				fprintf('D: %d, MaxFEs: %.4E, NP: %d; fitfun: %s\n', ...
+					D(Di), MaxFEsi, NP(NPi), fitfuni);
+				parfor RUNi = 1 : RUN
+					[~, fmin, out] = ...
+						feval(solver, fitfuni, lb, ub, MaxFEsi, solverOptions);
+					if fmin <= 1e-8
+						fmin = 1e-8;
+					end
+					
+					error(RUNi, Fi, NPi, Mi, Di) = fmin;
+					xstd(RUNi, Fi, NPi, Mi, Di) = mean(out.xstd);
 				end
-				results(RUNi, Fi, NPi, Di) = fmin;
 			end
-		end		
-		
-		save(sprintf('analyze_np_%s.mat', date), ...
-			'results', 'D', 'NP', 'RUN', 'fitfun');
+			
+			save(sprintf('analyze_np_%s.mat', date), ...
+				'error', ...
+				'xstd', ...
+				'D', ...
+				'MaxFEs', ...
+				'NP', ...
+				'RUN', ...
+				'fitfun', ...
+				'solver');
+		end
 	end
 end
 
-min_results = reshape(min(results), numel(fitfun), numel(NP), numel(D));
-quantile_results_25 = reshape(quantile(results, 0.25), numel(fitfun), numel(NP), numel(D));
-median_results = reshape(median(results), numel(fitfun), numel(NP), numel(D));
-quantile_results_75 = reshape(quantile(results, 0.75), numel(fitfun), numel(NP), numel(D));
-max_results = reshape(max(results), numel(fitfun), numel(NP), numel(D));
+mean_error = mean(error);
+[~, minidx] = min(mean_error, [], 3);
+minidx = reshape(minidx, numel(fitfun), numel(MaxFEs), numel(D));
+mean_error_bestnp = zeros(numel(fitfun), numel(MaxFEs), numel(D));
 
+mean_xstd = mean(xstd);
+mean_xstd_best = min(min(mean_xstd, [], 3), [], 4);
+mean_xstd_best = reshape(mean_xstd_best, numel(fitfun), numel(D));
+mean_xstd_overall = mean(reshape(xstd, RUN * numel(fitfun), numel(NP), numel(MaxFEs), numel(D)));
+mean_xstd_overall = reshape(mean_xstd_overall, numel(NP), numel(MaxFEs), numel(D));
+
+mean_xstd_bestnp = zeros(numel(fitfun), numel(MaxFEs), numel(D));
+
+for i = 1 : numel(fitfun)
+	for j = 1 : numel(MaxFEs)
+		for k = 1 : numel(D)
+			mean_error_bestnp(i, j, k) = ...
+				mean_error(1, i, minidx(i, j, k), j, k);
+			
+			mean_xstd_bestnp(i, j, k) = ...
+				mean_xstd(1, i, minidx(i, j, k), j, k);
+		end
+	end
+end
+
+norm_errors = error;
 for Di = 1 : numel(D)
-	for Fi = 1 : numel(fitfun)
-		for NPi = 1 : numel(NP)
-			fprintf('D = %d; NP = %d; fitfun = %s\n', D(Di), NP(NPi), fitfun{Fi});
-			fprintf('Min solution error = %.4E\n', min_results(NPi, Di));
-			fprintf('25%% quantile of solution error = %.4E\n', quantile_results_25(NPi, Di));
-			fprintf('Median solution error = %.4E\n', median_results(NPi, Di));
-			fprintf('75%% quantile of solution error = %.4E\n', quantile_results_75(NPi, Di));
-			fprintf('Max solution error = %.4E\n', max_results(NPi, Di));
+	for Mi = 1 : numel(MaxFEs)
+		for Fi = 1 : numel(fitfun)
+			errors_Fi = error(:, Fi, :, Mi, Di);
+			for NPi = 1 : numel(NP)
+				for RUNi = 1 : RUN
+					norm_errors(RUNi, Fi, NPi, Mi, Di) = ...
+						(1 - 1e-8) * ...
+						(error(RUNi, Fi, NPi, Mi, Di) - min(errors_Fi(:)) + 1e-8) ./ ...
+						(max(errors_Fi(:)) - min(errors_Fi(:)) + 1e-8) + ...
+						1e-8;
+				end
+			end
 		end
 	end
 end
 
-normalized_results = results;
-for RUNi = 1 : RUN
-	for Fi = 1 : numel(fitfun)
-		results_Fi = results(:, Fi, :);		
-		for NPi = 1 : numel(NP)
-			normalized_results(RUNi, Fi, NPi) = ...
-				(1 - 1e-8) * ...
-				(results(RUNi, Fi, NPi) - min(results_Fi(:)) + 1e-8) ./ ...
-				(max(results_Fi(:)) - min(results_Fi(:)) + 1e-8) + ...
-				1e-8;
-		end
-	end
-end
-
-compact_nr = reshape(normalized_results, RUN * numel(fitfun), numel(NP));
-min_nr = reshape(min(compact_nr), numel(NP), 1);
-quantile25_nr = reshape(quantile(compact_nr, 0.25), numel(NP), 1);
-median_nr = reshape(median(compact_nr), numel(NP), 1);
-quantile75_nr = reshape(quantile(compact_nr, 0.75), numel(NP), 1);
-max_nr = reshape(max(compact_nr), numel(NP), 1);
+mean_norm_errors = mean(reshape(norm_errors, RUN * numel(fitfun), numel(NP), numel(MaxFEs), numel(D)));
 
 elapsed_time = toc(startTime);
 if elapsed_time < 60
@@ -107,5 +129,12 @@ else
 end
 
 save(sprintf('analyze_np_%s.mat', date), ...
-	'results', 'D', 'NP', 'RUN', 'fitfun', 'elapsed_time');
-% end
+	'error', ...
+	'xstd', ...
+	'D', ...
+	'MaxFEs', ...
+	'NP', ...
+	'RUN', ...
+	'fitfun', ...
+	'solver', ...
+	'elapsed_time');

@@ -7,7 +7,7 @@ close all;
 startTime = tic;
 date = datestr(now, 'yyyymmddHHMM');
 
-solver = 'apjadebin';
+solver = 'jadebin';
 measureOptions.Dimension = 30;
 measureOptions.Runs = 51;
 measureOptions.FitnessFunctions = {...

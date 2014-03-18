@@ -91,6 +91,7 @@ countStagnation = 0;
 out = initoutput(RecordPoint, D, NP, maxfunevals, ...
 	'NP', ...
 	'converg_rate', ...
+	'geomean_Sconvrate', ...
 	'm');
 
 % Initialize contour data
@@ -195,15 +196,15 @@ end
 
 % Convergence speed
 xstd_new = std(X(:, 1 : NP), 0, 2);
-Sconvrate = zeros(1, M);
+xstd_rec = xstd_new;
+Sconvrate = ones(1, M);
 SconvrateCounter = 0;
-converg_rate = 1;
 m = 0;
 
 % Record
 out = updateoutput(out, X(:, 1 : NP), f(1 : NP), counteval, ...
 	'NP', NP, ...
-	'converg_rate', converg_rate, ...
+	'geomean_Sconvrate', geomean(Sconvrate), ...
 	'm', m);
 
 % Iteration counter
@@ -418,11 +419,13 @@ while true
 	
 	% Convergence speed
 	xstd_prev = xstd_new;
-	xstd_new = std(X(:, 1 : NP), 0, 2);
+	xstd_new = std(X(:, 1 : NP), 0, 2);	
 	converg_rate = mean(xstd_new ./ (xstd_prev + eps));
 	NP_prev = NP;
 	
-	if SconvrateCounter < M
+	if SconvrateCounter < 0
+		SconvrateCounter = SconvrateCounter + 1;
+	elseif SconvrateCounter < M
 		Sconvrate(SconvrateCounter + 1) = converg_rate;		
 		SconvrateCounter = SconvrateCounter + 1;
 	else
@@ -430,9 +433,18 @@ while true
 		Sconvrate(end) = converg_rate;
 		convrate_avg = geomean(Sconvrate);
 		m = (log(Ptarget) - log(mean(xstd_new))) / (log(convrate_avg) + eps);
-		NP = floor((1 - r) * NP_prev + r * (maxfunevals - counteval) / m);
-		NP = max(NP_MIN, min(NP, NP_MAX));
-		xstd_new = std(X(:, 1 : NP), 0, 2);
+		NP_exp = (maxfunevals - counteval) / m;
+		
+		if NP_exp < NP
+			NP = floor((1 - r) * NP_prev + r * NP_exp);
+			NP = max(NP_MIN, min(NP, NP_MAX));
+			SconvrateCounter = -M;
+		elseif mean(xstd_new) < mean(xstd_rec)
+			xstd_rec = xstd_new;
+			NP = floor((1 - r) * NP_prev + r * NP_exp);
+			NP = max(NP_MIN, min(NP, NP_MAX));		
+			SconvrateCounter = -M;
+		end
 	end
 	
 	% Check function values
@@ -457,7 +469,7 @@ while true
 	% Record
 	out = updateoutput(out, X(:, 1 : NP), f(1 : NP), counteval, ...
 		'NP', NP, ...
-		'converg_rate', converg_rate, ...
+		'geomean_Sconvrate', geomean(Sconvrate), ...
 		'm', m);
 	
 	% Iteration counter
@@ -489,6 +501,6 @@ out = finishoutput(out, X(:, 1 : NP), f(1 : NP), counteval, ...
 	'final', final, ...
 	'countcon', countcon, ...
 	'NP', NP, ...
-	'converg_rate', converg_rate, ...
+	'geomean_Sconvrate', geomean(Sconvrate), ...
 	'm', m);
 end

@@ -260,10 +260,10 @@ while true
 				end
 			end
 							
-			V(:, i) = X(:, pbest_idx) + F(i) .* ...
-				(X(:, i) - X(:, i) + X(:, r1) - XA(:, r2));
-% 			V(:, i) = X(:, i) + F(i) .* ...
-% 				(X(:, pbest_idx) - X(:, i) + X(:, r1) - XA(:, r2));
+% 			V(:, i) = X(:, pbest_idx) + F(i) .* ...
+% 				(X(:, i) - X(:, i) + X(:, r1) - XA(:, r2));
+			V(:, i) = X(:, i) + F(i) .* ...
+				(X(:, pbest_idx) - X(:, i) + X(:, r1) - XA(:, r2));
 			
 			% Check boundary
 			if all(V(:, i) > lb) && all(V(:, i) < ub)
@@ -280,6 +280,25 @@ while true
 				U(j, i) = V(j, i);
 			else
 				U(j, i) = X(j, i);
+			end
+		end
+	end
+	
+	% Constraint reflection
+	for i = 1 : NP
+		for j = 1 : D
+			for k = 1 : 3
+				if U(j, i) < lb(j)
+					U(j, i) = 2 * lb(j) - U(j, i);
+				end
+				
+				if U(j, i) > ub(j)
+					U(j, i) = 2 * ub(j) - U(j, i);
+				end
+				
+				if U(j, i) >= lb(j) && U(j, i) <= ub(j)
+					break;
+				end
 			end
 		end
 	end
