@@ -9,7 +9,7 @@ if nargin <= 4
 end
 
 defaultOptions.dimensionFactor = 5;
-defaultOptions.F = 0.9;
+defaultOptions.F = 0.7;
 defaultOptions.CR = 0.5;
 defaultOptions.delta_CR = 0.1;
 defaultOptions.delta_F = 0.1;
@@ -20,7 +20,7 @@ defaultOptions.RecordPoint = 100;
 defaultOptions.ftarget = -Inf;
 defaultOptions.TolFun = 0;
 defaultOptions.TolX = 0;
-defaultOptions.TolStagnationIteration = 20;
+defaultOptions.TolStagnationIteration = 30;
 defaultOptions.initial.X = [];
 defaultOptions.initial.f = [];
 defaultOptions.initial.A = [];
@@ -354,11 +354,11 @@ while true
 		end			
 		
 		if u_selected
+			A(:, NP + A_Counter + 1) = X(:, i);
 			cm(i) = cm_u(i);
 			nc(i) = nc_u(i);			
 			f(i) = fui;
 			X(:, i) = U(:, i);
-			A(:, NP + A_Counter + 1) = U(:, i);
 			S_CR(A_Counter + 1) = CR(i);
 			S_F(A_Counter + 1) = F(i);
 			A_Counter = A_Counter + 1;
@@ -374,8 +374,6 @@ while true
 	if A_Counter > 0
 		mu_CR = (1-w) * mu_CR + w * mean(S_CR(1 : A_Counter));
 		mu_F = (1-w) * mu_F + w * sum(S_F(1 : A_Counter).^2) / sum(S_F(1 : A_Counter));
-	else
-		mu_F = (1-w) * mu_F;
 	end
 	
 	% Sort	

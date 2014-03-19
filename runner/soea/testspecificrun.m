@@ -3,16 +3,18 @@ function testspecificrun
 %function, maximal function evaluations.
 startTime = tic;
 close all;
-solver = 'sajadebin';
-fitfun = 'cec13_f24';
-D = 10;
+% solver = 'jadebin';
+solver = 'jadebin';
+fitfun = 'cec13_f7';
+D = 30;
 maxfunevals = D * 1e4;
 solverOptions.nonlcon = [];
-solverOptions.dimensionFactor = 10;
-solverOptions.F = 0.7;
+solverOptions.dimensionFactor = 5;
+solverOptions.F = 0.9;
+solverOptions.H = 0.9;
 solverOptions.CR = 0.5;
 solverOptions.R = 0.5;
-solverOptions.TolX = 0;
+solverOptions.TolX = 1e-8;
 solverOptions.TolFun = 0;
 solverOptions.TolStagnationIteration = 30;
 solverOptions.ftarget = -Inf;
@@ -183,6 +185,14 @@ if isfield(out, 'geomean_Sconvrate')
 	title(sprintf('Solve %s by %s', fitfun, solver));
 	xlabel('FEs');
 	ylabel('geomean_Sconvrate');
+end
+
+if isfield(out, 'mu_H')
+	figure;
+	semilogy(out.fes, out.mu_H);
+	title(sprintf('Solve %s by %s', fitfun, solver));
+	xlabel('FEs');
+	ylabel('mu_H');
 end
 
 figure;
