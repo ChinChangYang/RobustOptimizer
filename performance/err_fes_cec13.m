@@ -1,4 +1,4 @@
-function ret = fes_cec13(solver, measureOptions, solverOptions)
+function [allerr, allfes] = err_fes_cec13(solver, measureOptions, solverOptions)
 % FES_CEC13 FEs of a solver to converge 
 
 % Handle input options
@@ -54,20 +54,21 @@ else
 end
 
 % Statistic variables
+allerr = zeros(length(maxfunevalset), length(fitfuns), nRuns);
 allfes = zeros(length(maxfunevalset), length(fitfuns), nRuns);
 
 % Main optimizer
 rand('state', sum(100*clock)); %#ok<RAND>
 for iFitfun = 1 : length(fitfuns)
+	fitfun = fitfuns(iFitfun);
+	fitfun = fitfun{:};
 	for iMaxfuneval = 1 : length(maxfunevalset)
-		% Reset default random stream
-        for iRuns = 1 : nRuns
-            maxfunevals = maxfunevalset(iMaxfuneval);
-            fitfun = fitfuns(iFitfun);
+		maxfunevals = maxfunevalset(iMaxfuneval);
+        parfor iRuns = 1 : nRuns
 			fprintf('fitfun: %s, maxfunevals: %d, runs: %d\n', ...
-				fitfun{:}, maxfunevals, iRuns);
-            [~, ~, out] = ...
-                feval(solver, fitfun{:}, lb, ub, maxfunevals, ...
+				fitfun, maxfunevals, iRuns);
+            [~, allerr(iMaxfuneval, iFitfun, iRuns), out] = ...
+                feval(solver, fitfun, lb, ub, maxfunevals, ...
 				solverOptions);
 			
 			allfes(iMaxfuneval, iFitfun, iRuns) = out.fes(end);
@@ -75,5 +76,4 @@ for iFitfun = 1 : length(fitfuns)
 	end
 end
 
-ret = allfes;
 end

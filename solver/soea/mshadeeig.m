@@ -1,9 +1,9 @@
-function [xmin, fmin, out] = shade(fitfun, lb, ub, maxfunevals, options)
-% SHADE SHADE algorithm
-% SHADE(fitfun, lb, ub, maxfunevals) minimize the function fitfun in
+function [xmin, fmin, out] = mshadeeig(fitfun, lb, ub, maxfunevals, options)
+% MSHADEEIG Mutable SHADE/EIG algorithm
+% MSHADEEIG(fitfun, lb, ub, maxfunevals) minimize the function fitfun in
 % box constraints [lb, ub] with the maximal function evaluations
 % maxfunevals.
-% SHADE(..., options) minimize the function by solver options.
+% MSHADEEIG(..., options) minimize the function by solver options.
 if nargin <= 4
 	options = [];
 end
@@ -12,6 +12,8 @@ defaultOptions.NP = 100;
 defaultOptions.H = 100;
 defaultOptions.F = 0.5;
 defaultOptions.CR = 0.5;
+defaultOptions.R = 0.5;
+defaultOptions.cc = 0.1;
 defaultOptions.Display = 'off';
 defaultOptions.RecordPoint = 100;
 defaultOptions.ftarget = -Inf;
@@ -23,10 +25,12 @@ defaultOptions.initial.f = [];
 defaultOptions.initial.A = [];
 defaultOptions.initial.MCR = [];
 defaultOptions.initial.MF = [];
+defaultOptions.initial.MP = [];
 
 options = setdefoptions(options, defaultOptions);
 NP = options.NP;
 H = options.H;
+cc = options.cc;
 isDisplayIter = strcmp(options.Display, 'iter');
 RecordPoint = max(0, floor(options.RecordPoint));
 ftarget = options.ftarget;
@@ -41,12 +45,14 @@ if ~isempty(options.initial)
 	A = options.initial.A;
 	MCR = options.initial.MCR;
 	MF = options.initial.MF;
+	MP = options.initial.MP;
 else
 	X = [];
 	fx = [];
 	A = [];
 	MCR = [];
 	MF = [];
+	MP = [];
 end
 
 D = numel(lb);
@@ -59,7 +65,7 @@ counteval = 0;
 countiter = 1;
 countStagnation = 0;
 out = initoutput(RecordPoint, D, NP, maxfunevals, ...
-	'MF', 'MCR');
+	'MF', 'MCR', 'MP');
 
 % Initialize contour data
 if isDisplayIter
@@ -87,19 +93,28 @@ end
 [fx, fidx] = sort(fx);
 X = X(:, fidx);
 
-% mu_F
+% MF
 if isempty(MF)
 	MF = options.F * ones(H, 1);
 end
 
-% mu_CR
+% MCR
 if isempty(MCR)
 	MCR = options.CR * ones(H, 1);
+end
+
+% MP
+if isempty(MP)
+	MP = options.R * ones(H, 1);
 end
 
 % Initialize variables
 V = X;
 U = X;
+XT = X;
+VT = X;
+UT = X;
+C = cov(X');
 k = 1;
 r = zeros(1, NP);
 p = zeros(1, NP);
@@ -109,6 +124,7 @@ fu = zeros(1, NP);
 S_CR = zeros(1, NP);	% Set of crossover rate
 S_F = zeros(1, NP);		% Set of scaling factor
 S_df = zeros(1, NP);	% Set of df
+S_P = zeros(1, NP);	% Set of eigenvector ratio
 
 % Display
 if isDisplayIter
@@ -119,7 +135,8 @@ end
 % Record
 out = updateoutput(out, X, fx, counteval, ...
 	'MF', mean(MF), ...
-	'MCR', mean(MCR));
+	'MCR', mean(MCR), ...
+	'MP', mean(MP));
 
 % Iteration counter
 countiter = countiter + 1;
@@ -142,8 +159,7 @@ while true
 	nS = 0;
 	
 	% Crossover rates
-	CR = zeros(1, NP);
-	
+	CR = zeros(1, NP);	
 	for i = 1 : NP
 		r(i) = floor(1 + H * rand);
 		CR(i) = MCR(r(i)) + 0.1 * randn;
@@ -163,6 +179,15 @@ while true
 			F(i) = 1;
 		end
 	end
+	
+	% Eigenvector ratio
+	P = zeros(1, NP);	
+	for i = 1 : NP
+		P(i) = MP(r(i)) + 0.1 * randn;
+	end
+	
+	P(P > 1) = 1;
+	P(P < 0) = 0;
 	
 	% pbest
 	for i = 1 : NP
@@ -192,14 +217,30 @@ while true
 			+ F(i) .* (X(:, r1) - XA(:, r2));
 	end
 	
+	[B, ~] = eig(C);
 	for i = 1 : NP
-		% Binominal Crossover
-		jrand = floor(1 + D * rand);
-		for j = 1 : D
-			if rand < CR(i) || j == jrand
-				U(j, i) = V(j, i);
-			else
-				U(j, i) = X(j, i);
+		if rand < P(i)
+			% Rotational Crossover
+			XT(:, i) = B' * X(:, i);
+			VT(:, i) = B' * V(:, i);
+			jrand = floor(1 + D * rand);			
+			for j = 1 : D
+				if rand < CR(i) || j == jrand
+					UT(j, i) = VT(j, i);
+				else
+					UT(j, i) = XT(j, i);
+				end
+			end			
+			U(:, i) = B * UT(:, i);
+		else
+			% Binominal Crossover
+			jrand = floor(1 + D * rand);
+			for j = 1 : D
+				if rand < CR(i) || j == jrand
+					U(j, i) = V(j, i);
+				else
+					U(j, i) = X(j, i);
+				end
 			end
 		end
 	end
@@ -235,6 +276,7 @@ while true
 			S_CR(nS)	= CR(i);
 			S_F(nS)		= F(i);
 			S_df(nS)	= abs(fu(i) - fx(i));
+			S_P(nS)		= P(i);
 			X(:, i)		= U(:, i);
 			fx(i)		= fu(i);
 			
@@ -258,11 +300,15 @@ while true
 		w = S_df(1 : nS) ./ sum(S_df(1 : nS));
 		MCR(k) = sum(w .* S_CR(1 : nS));
 		MF(k) = sum(w .* S_F(1 : nS) .* S_F(1 : nS)) / sum(w .* S_F(1 : nS));
+		MP(k) = sum(w .* S_P(1 : nS));
 		k = k + 1;
 		if k > H
 			k = 1;
 		end
 	end
+	
+	% Update C
+	C = (1 - cc) * C + cc * cov(X');
 	
 	% Sort	
 	[fx, fidx] = sort(fx);
@@ -271,7 +317,8 @@ while true
 	% Record
 	out = updateoutput(out, X, fx, counteval, ...
 		'MF', mean(MF), ...
-		'MCR', mean(MCR));
+		'MCR', mean(MCR), ...
+		'MP', mean(MP));
 	
 	% Iteration counter
 	countiter = countiter + 1;
@@ -295,9 +342,11 @@ end
 final.A = A;
 final.MCR = MCR;
 final.MF = MF;
+final.MP = MP;
 
 out = finishoutput(out, X, fx, counteval, ...
 	'final', final, ...
 	'MF', mean(MF), ...
-	'MCR', mean(MCR));
+	'MCR', mean(MCR), ...
+	'MP', mean(MP));
 end

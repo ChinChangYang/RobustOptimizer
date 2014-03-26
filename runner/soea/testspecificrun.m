@@ -1,10 +1,11 @@
 function testspecificrun
 %TESTSPECIFICRUN Test a specific experiment of certain solver, test
 %function, maximal function evaluations.
+%%
 startTime = tic;
 close all;
-solver = 'shade';
-fitfun = 'cec13_f27';
+solver = 'mshadeeig';
+fitfun = 'cec13_f2';
 D = 30;
 maxfunevals = D * 1e4;
 solverOptions.nonlcon = [];
@@ -14,12 +15,14 @@ solverOptions.H = 100;
 solverOptions.F = 0.5;
 solverOptions.CR = 0.5;
 solverOptions.R = 0.5;
+solverOptions.cc = 0.05;
+solverOptions.pmax = 0.2;
 solverOptions.TolX = 1e-8;
 solverOptions.TolFun = 0;
 solverOptions.TolStagnationIteration = 30;
 solverOptions.ftarget = -Inf;
 solverOptions.Restart = 0;
-solverOptions.Display = 'iter';
+solverOptions.Display = 'off';
 solverOptions.RecordPoint = 1000;
 solverOptions.Noise = false;
 % lb = -5e50 * ones(D, 1);
@@ -33,19 +36,23 @@ ub = 100 * ones(D, 1);
 % [lb, ub] = getlimit_messenger;
 [xmin, fmin, out] = ...
     feval(solver, fitfun, lb, ub, maxfunevals, solverOptions);
-fprintf('out.bestever.xmin = \n');
-disp(out.bestever.xmin);
-if isfield(out, 'xmean')
-	fprintf('xmean = \n');
-	disp(out.xmean(:, end));
-end
-fprintf('out.bestever.fmin = \n');
-disp(out.bestever.fmin);
-fprintf('xmin = \n');
-disp(xmin);
-fprintf('fmin = %.4E\n', fmin);
-if strncmp('bbob12', fitfun, 6)
-	fprintf('fmin - fopt = %.4E\n', fmin - feval(fitfun, 'xopt'));
+% fprintf('out.bestever.xmin = \n');
+% disp(out.bestever.xmin);
+% if isfield(out, 'xmean')
+% 	fprintf('xmean = \n');
+% 	disp(out.xmean(:, end));
+% end
+% fprintf('out.bestever.fmin = \n');
+% disp(out.bestever.fmin);
+% fprintf('xmin = \n');
+% disp(xmin);
+fprintf('fes = %.4E\n', out.fes(end));
+% fprintf('fmin = %.4E\n', fmin);
+% if strncmp('bbob12', fitfun, 6)
+% 	fprintf('fmin - fopt = %.4E\n', fmin - feval(fitfun, 'xopt'));
+% end
+if isfield(out, 'stopflag')
+	fprintf('stopflag = %s\n', out.stopflag);
 end
 figure(2);
 subplot(231);
@@ -211,10 +218,26 @@ if isfield(out, 'MCR')
 	ylabel('MCR');
 end
 
+if isfield(out, 'MP')
+	figure;
+	plot(out.fes, out.MP);
+	title(sprintf('Solve %s by %s', fitfun, solver));
+	xlabel('FEs');
+	ylabel('MP');
+end
+
+if isfield(out, 'countStagnation')
+	figure;
+	plot(out.fes, out.countStagnation);
+	title(sprintf('Solve %s by %s', fitfun, solver));
+	xlabel('FEs');
+	ylabel('countStagnation');
+end
+
 figure;
 semilogy(out.fes, mean(out.xstd));
 xlabel('FEs');
 title('Std. of X solutions');
 
-toc(startTime);
+% toc(startTime);
 end

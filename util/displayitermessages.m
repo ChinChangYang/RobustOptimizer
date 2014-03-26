@@ -31,8 +31,8 @@ if nargin >= 7
 			hold on;
 			plot(X(i,:), X(i+1,:), 'kx', 'MarkerSize', 12, 'LineWidth', 2);
 			plot(U(i,:), U(i+1,:), 'rx', 'MarkerSize', 12, 'LineWidth', 2);
-			pause(0.01);
 		end
+		pause(0.01);
 	elseif D >= 2 && cD == 1
 		hold off;
 		contour(XX, YY, ZZ, 7);

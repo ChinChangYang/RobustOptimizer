@@ -354,11 +354,11 @@ while true
 		end			
 		
 		if u_selected
-			A(:, NP + A_Counter + 1) = X(:, i);
 			cm(i) = cm_u(i);
 			nc(i) = nc_u(i);			
 			f(i) = fui;
 			X(:, i) = U(:, i);
+			A(:, NP + A_Counter + 1) = X(:, i);
 			S_CR(A_Counter + 1) = CR(i);
 			S_F(A_Counter + 1) = F(i);
 			A_Counter = A_Counter + 1;

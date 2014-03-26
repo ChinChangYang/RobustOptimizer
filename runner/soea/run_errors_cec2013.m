@@ -7,8 +7,8 @@ close all;
 startTime = tic;
 date = datestr(now, 'yyyymmddHHMM');
 
-solver = 'jadebin';
-measureOptions.Dimension = 30;
+solver = 'shade';
+measureOptions.Dimension = 50;
 measureOptions.Runs = 51;
 measureOptions.FitnessFunctions = {...
 	'cec13_f1', 'cec13_f2', 'cec13_f3', 'cec13_f4', ...
