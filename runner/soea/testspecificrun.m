@@ -3,15 +3,15 @@ function testspecificrun
 %function, maximal function evaluations.
 startTime = tic;
 close all;
-% solver = 'jadebin';
-solver = 'jadebin';
-fitfun = 'cec14_f17';
-D = 10;
+solver = 'shade';
+fitfun = 'cec13_f27';
+D = 30;
 maxfunevals = D * 1e4;
 solverOptions.nonlcon = [];
 solverOptions.dimensionFactor = 5;
-solverOptions.F = 0.9;
-solverOptions.H = 0.9;
+solverOptions.NP = 100;
+solverOptions.H = 100;
+solverOptions.F = 0.5;
 solverOptions.CR = 0.5;
 solverOptions.R = 0.5;
 solverOptions.TolX = 1e-8;
@@ -193,6 +193,22 @@ if isfield(out, 'mu_H')
 	title(sprintf('Solve %s by %s', fitfun, solver));
 	xlabel('FEs');
 	ylabel('mu_H');
+end
+
+if isfield(out, 'MF')
+	figure;
+	plot(out.fes, out.MF);
+	title(sprintf('Solve %s by %s', fitfun, solver));
+	xlabel('FEs');
+	ylabel('MF');
+end
+
+if isfield(out, 'MCR')
+	figure;
+	plot(out.fes, out.MCR);
+	title(sprintf('Solve %s by %s', fitfun, solver));
+	xlabel('FEs');
+	ylabel('MCR');
 end
 
 figure;
