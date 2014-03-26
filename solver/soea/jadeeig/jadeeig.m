@@ -11,7 +11,7 @@ end
 defaultOptions.dimensionFactor = 5;
 defaultOptions.R = 0.5;
 defaultOptions.mu_CR = 0.5;
-defaultOptions.mu_F = 1.0;
+defaultOptions.mu_F = 0.7;
 defaultOptions.delta_CR = 0.1;
 defaultOptions.delta_F = 0.1;
 defaultOptions.p = 0.05;
@@ -25,6 +25,7 @@ defaultOptions.SampleFactor = 1.01;
 defaultOptions.ftarget = -Inf;
 defaultOptions.TolFun = eps;
 defaultOptions.TolX = 100 * eps;
+defaultOptions.TolStagnationIteration = 30;
 defaultOptions.X = [];
 
 options = setdefoptions(options, defaultOptions);
@@ -45,6 +46,7 @@ SampleFactor = options.SampleFactor;
 ftarget = options.ftarget;
 TolFun = options.TolFun;
 TolX = options.TolX;
+TolStagnationIteration = options.TolStagnationIteration;
 D = numel(lb);
 X = options.X;
 
@@ -130,6 +132,7 @@ for iRestart = 1 : (Restart + 1)
 	UT = X;
 	realSamples = 1;
 	pbest_size = p * NP;	
+	countStagnation = 0;
 	
 	% Evaluation
 	f = zeros(1, NP);
@@ -158,19 +161,17 @@ for iRestart = 1 : (Restart + 1)
 	% Iteration counter
 	countiter = countiter + 1;
 	
-	while true	
+	while true
 		% Termination conditions
-		stdf = std(f);
-		stdX = std(X, 0, 2);
-		meanX = mean(X, 2);
 		outofmaxfunevals = counteval > maxfunevals - NP;
 		reachftarget = min(f) <= ftarget;
-		fitnessconvergence = stdf <= mean(abs(f)) * 100 * eps || stdf <= realmin || stdf <= TolFun;
-		solutionconvergence = all(stdX <= meanX * 100 * eps) || all(stdX <= 100 * realmin) || ...
-			all(stdX <= TolX);
+		fitnessconvergence = isConverged(f, TolFun);
+		solutionconvergence = isConverged(X, TolX);
+		stagnation = countStagnation >= TolStagnationIteration;
 		
 		% Convergence conditions
-		if outofmaxfunevals || reachftarget || fitnessconvergence || solutionconvergence
+		if outofmaxfunevals || reachftarget || fitnessconvergence || ...
+				solutionconvergence || stagnation
 			break;
 		end
 		
@@ -226,7 +227,7 @@ for iRestart = 1 : (Restart + 1)
 					end
 				end
 				
-				V(:, i) = X(:, pbest_idx) + F(i) * (X(:, i) - X(:, pbest_idx) + X(:, r1) - XA(:, r2));
+				V(:, i) = X(:, i) + F(i) * (X(:, pbest_idx) - X(:, i) + X(:, r1) - XA(:, r2));
 				
 				% Check boundary
 				if all(V(:, i) > lb) && all(V(:, i) < ub)
@@ -283,6 +284,7 @@ for iRestart = 1 : (Restart + 1)
 		end
 		
 		% Selection
+		FailedIteration = true;
 		if Noise
 			prevSamples = ceil(realSamples);
 			realSamples = SampleFactor * realSamples;
@@ -316,6 +318,7 @@ for iRestart = 1 : (Restart + 1)
 					S_CR(A_Counter + 1) = CR(i);
 					S_F(A_Counter + 1) = F(i);
 					A_Counter = A_Counter + 1;
+					FailedIteration = false;
 				end
 			end
 		else
@@ -324,12 +327,13 @@ for iRestart = 1 : (Restart + 1)
 				counteval = counteval + 1;
 				
 				if fui < f(i)
+					A(:, NP + A_Counter + 1) = X(:, i);
 					f(i) = fui;
 					X(:, i) = U(:, i);
-					A(:, NP + A_Counter + 1) = U(:, i);
 					S_CR(A_Counter + 1) = CR(i);
 					S_F(A_Counter + 1) = F(i);
 					A_Counter = A_Counter + 1;
+					FailedIteration = false;
 				end
 			end
 		end
@@ -342,8 +346,6 @@ for iRestart = 1 : (Restart + 1)
 		if A_Counter > 0
 			mu_CR = (1-w) * mu_CR + w * mean(S_CR(1 : A_Counter));
 			mu_F = (1-w) * mu_F + w * sum(S_F(1 : A_Counter).^2) / sum(S_F(1 : A_Counter));
-		else
-			mu_F = (1-w) * mu_F;
 		end
 		
 		% Sort
@@ -356,6 +358,13 @@ for iRestart = 1 : (Restart + 1)
 		
 		% Iteration counter
 		countiter = countiter + 1;
+		
+		% Stagnation iteration
+		if FailedIteration
+			countStagnation = countStagnation + 1;
+		else
+			countStagnation = 0;
+		end
 	end
 	
 	[fmin, fminidx] = min(f);
