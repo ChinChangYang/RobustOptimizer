@@ -1,27 +1,27 @@
-function [xmin, fmin, out] = mshadeeig_l(fitfun, lb, ub, maxfunevals, options)
-% MSHADEEIG_L Mutable SHADE/EIG algorithm (Local Search)
-% MSHADEEIG_L(fitfun, lb, ub, maxfunevals) minimize the function fitfun in
+function [xmin, fmin, out] = mshadeeig_g(fitfun, lb, ub, maxfunevals, options)
+% MSHADEEIG_G Mutable SHADE/EIG algorithm (Global Search)
+% MSHADEEIG_G(fitfun, lb, ub, maxfunevals) minimize the function fitfun in
 % box constraints [lb, ub] with the maximal function evaluations
 % maxfunevals.
-% MSHADEEIG_L(..., options) minimize the function by solver options.
+% MSHADEEIG_G(..., options) minimize the function by solver options.
 if nargin <= 4
 	options = [];
 end
 
 defaultOptions.NP = 100;
 defaultOptions.H = 100;
-defaultOptions.F = 0.5;
-defaultOptions.G = 1.0;
+defaultOptions.F = 1.0;
+defaultOptions.G = 0.5;
 defaultOptions.CR = 0.5;
 defaultOptions.R = 0.5;
 defaultOptions.cc = 0.05;
 defaultOptions.pmin = 2/100;
 defaultOptions.pmax = 0.2;
-defaultOptions.deltaF = 0.1;
-defaultOptions.deltaG = 0.001;
+defaultOptions.deltaF = 0.02;
+defaultOptions.deltaG = 0.1;
 defaultOptions.deltaCR = 0.1;
 defaultOptions.deltaR = 0.1;
-defaultOptions.deltaPMAX = 0.01;
+defaultOptions.deltaPMAX = 0.05;
 defaultOptions.Display = 'off';
 defaultOptions.RecordPoint = 100;
 defaultOptions.ftarget = -Inf;

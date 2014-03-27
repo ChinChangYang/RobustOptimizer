@@ -9,12 +9,13 @@ date = datestr(now, 'yyyymmddHHMM');
 
 solver = 'mshadeeig';
 measureOptions.Dimension = 30;
-measureOptions.Runs = 4;
+measureOptions.Runs = 51;
 measureOptions.FitnessFunctions = {...
 	'cec13_f1', 'cec13_f2', 'cec13_f3', 'cec13_f4', ...
 	'cec13_f5'};
 measureOptions.MaxFunEvalSet = measureOptions.Dimension * 1e4;
 solverOptions.RecordPoint = 0;
+solverOptoins.cc = 0.05;
 [allerr, allfes] = err_fes_cec13(solver, measureOptions, solverOptions);
 [nmaxfunevals, nfunctions, nruns] = size(allerr);
 succ_perform = zeros(nmaxfunevals, nfunctions);
@@ -46,3 +47,7 @@ save(sprintf('succ_perform_cec13_%s.mat', date), ...
 	'allerr', ...
 	'allfes', ...
 	'solver', 'measureOptions', 'solverOptions', 'elapsed_time');
+
+beep; pause(0.1);
+beep; pause(0.1);
+beep; pause(0.1);

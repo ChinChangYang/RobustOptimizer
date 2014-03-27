@@ -1,22 +1,27 @@
-function testspecificrun
 %TESTSPECIFICRUN Test a specific experiment of certain solver, test
 %function, maximal function evaluations.
-%%
 startTime = tic;
 close all;
-solver = 'mshadeeig';
-fitfun = 'cec13_f2';
+solver = 'mshadeeig_g';
+fitfun = 'cec13_f13';
 D = 30;
 maxfunevals = D * 1e4;
 solverOptions.nonlcon = [];
-solverOptions.dimensionFactor = 5;
-solverOptions.NP = 100;
-solverOptions.H = 100;
-solverOptions.F = 0.5;
-solverOptions.CR = 0.5;
-solverOptions.R = 0.5;
-solverOptions.cc = 0.05;
-solverOptions.pmax = 0.2;
+% solverOptions.dimensionFactor = 5;
+% solverOptions.NP = 100;
+% solverOptions.H = 100;
+% solverOptions.F = 1.0;
+% solverOptions.G = 0.5;
+% solverOptions.CR = 0.5;
+% solverOptions.R = 0.5;
+% solverOptions.cc = 0.05;
+% solverOptions.pmin = 2/100;
+% solverOptions.pmax = 0.2;
+% solverOptions.deltaF = 0.02;
+% solverOptions.deltaG = 0.1;
+% solverOptions.deltaCR = 0.1;
+% solverOptions.deltaR = 0.1;
+% solverOptions.deltaPMAX = 0.05;
 solverOptions.TolX = 1e-8;
 solverOptions.TolFun = 0;
 solverOptions.TolStagnationIteration = 30;
@@ -47,7 +52,7 @@ ub = 100 * ones(D, 1);
 % fprintf('xmin = \n');
 % disp(xmin);
 fprintf('fes = %.4E\n', out.fes(end));
-% fprintf('fmin = %.4E\n', fmin);
+fprintf('fmin = %.4E\n', fmin);
 % if strncmp('bbob12', fitfun, 6)
 % 	fprintf('fmin - fopt = %.4E\n', fmin - feval(fitfun, 'xopt'));
 % end
@@ -218,12 +223,12 @@ if isfield(out, 'MCR')
 	ylabel('MCR');
 end
 
-if isfield(out, 'MP')
+if isfield(out, 'MR')
 	figure;
-	plot(out.fes, out.MP);
+	plot(out.fes, out.MR);
 	title(sprintf('Solve %s by %s', fitfun, solver));
 	xlabel('FEs');
-	ylabel('MP');
+	ylabel('MR');
 end
 
 if isfield(out, 'countStagnation')
@@ -234,10 +239,25 @@ if isfield(out, 'countStagnation')
 	ylabel('countStagnation');
 end
 
+if isfield(out, 'MG')
+	figure;
+	plot(out.fes, out.MG);
+	title(sprintf('Solve %s by %s', fitfun, solver));
+	xlabel('FEs');
+	ylabel('MG');
+end
+
+if isfield(out, 'MPMAX')
+	figure;
+	plot(out.fes, out.MPMAX);
+	title(sprintf('Solve %s by %s', fitfun, solver));
+	xlabel('FEs');
+	ylabel('MPMAX');
+end
+
 figure;
 semilogy(out.fes, mean(out.xstd));
 xlabel('FEs');
 title('Std. of X solutions');
 
 % toc(startTime);
-end
