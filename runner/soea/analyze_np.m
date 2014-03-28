@@ -6,15 +6,15 @@ clear;
 close all;
 startTime = tic;
 date = datestr(now, 'yyyymmddHHMM');
-RUN = 31;
-NP = [4,6,9,14,21,32,48,72,108,162,243,365,548,822,1233,1850,2775,4163];
-% NP = 100;
-% NP = [4,9,21,48,108,243,548,1233,2775];
+RUN = 20;
+NP = [4	5	6	8	10	12	15	19	24	30	37	47	58	73	91	...
+	114	142	178	222	278];
+% NP = [4	37 278];
 % MaxFEs = [3e4, 3e5, 3e6];
 % MaxFEs = [3e4, 3e5];
-MaxFEs = 3e4;
+MaxFEs = 3e5;
 % D = [10, 30, 50];
-D = 10;
+D = 30;
 fitfun = {'cec13_f1', 'cec13_f2', 'cec13_f3', 'cec13_f4', ...
 		'cec13_f5', 'cec13_f6', 'cec13_f7', 'cec13_f8', 'cec13_f9', ...
 		'cec13_f10', 'cec13_f11', 'cec13_f12', 'cec13_f13', ...
@@ -25,10 +25,10 @@ fitfun = {'cec13_f1', 'cec13_f2', 'cec13_f3', 'cec13_f4', ...
 % fitfun = {'cec13_f1', 'cec13_f19'};
 error = zeros(RUN, numel(fitfun), numel(NP), numel(MaxFEs), numel(D));
 xstd = zeros(RUN, numel(fitfun), numel(NP), numel(MaxFEs), numel(D));
-solver = 'jadebin';
+solver = 'mshadeeig';
 solverOptions.nonlcon = [];
-solverOptions.F = 0.7;
-solverOptions.CR = 0.5;
+% solverOptions.F = 0.7;
+% solverOptions.CR = 0.5;
 solverOptions.TolX = 0;
 solverOptions.TolFun = 0;
 solverOptions.TolStagnationIteration = 100;
@@ -138,3 +138,7 @@ save(sprintf('analyze_np_%s.mat', date), ...
 	'fitfun', ...
 	'solver', ...
 	'elapsed_time');
+
+beep; pause(0.7);
+beep; pause(0.31);
+beep; pause(0.31);

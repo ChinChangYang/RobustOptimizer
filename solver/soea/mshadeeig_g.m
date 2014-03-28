@@ -27,7 +27,7 @@ defaultOptions.RecordPoint = 100;
 defaultOptions.ftarget = -Inf;
 defaultOptions.TolFun = 0;
 defaultOptions.TolX = 0;
-defaultOptions.TolStagnationIteration = 30;
+defaultOptions.TolStagnationIteration = 100;
 defaultOptions.initial.X = [];
 defaultOptions.initial.f = [];
 defaultOptions.initial.A = [];
@@ -374,10 +374,16 @@ while true
 		MG(k) = sum(w .* S_G(1 : nS));
 		MR(k) = sum(w .* S_R(1 : nS));
 		MPMAX(k) = sum(w .* S_PMAX(1 : nS));
-		k = k + 1;
-		if k > H
-			k = 1;
-		end
+	else % Emergency Mode
+		MCR(k) = 0.9;
+		MF(k) = 0.5 * MF(k);
+		MG(k) = 1;
+		MR(k) = 0.9;
+		MPMAX(k) = pmin;
+	end
+	k = k + 1;
+	if k > H
+		k = 1;
 	end
 	
 	% Update C

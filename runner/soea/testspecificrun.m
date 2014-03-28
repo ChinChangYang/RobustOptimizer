@@ -3,7 +3,7 @@
 startTime = tic;
 close all;
 solver = 'mshadeeig_g';
-fitfun = 'cec13_f13';
+fitfun = 'cec13_f10';
 D = 30;
 maxfunevals = D * 1e4;
 solverOptions.nonlcon = [];
@@ -24,7 +24,7 @@ solverOptions.nonlcon = [];
 % solverOptions.deltaPMAX = 0.05;
 solverOptions.TolX = 1e-8;
 solverOptions.TolFun = 0;
-solverOptions.TolStagnationIteration = 30;
+solverOptions.TolStagnationIteration = 100;
 solverOptions.ftarget = -Inf;
 solverOptions.Restart = 0;
 solverOptions.Display = 'off';
@@ -120,20 +120,22 @@ xlabel('FEs');
 title('Condition number');
 
 figure;
-NP = D * solverOptions.dimensionFactor;
-Gmax = maxfunevals / NP;
-alternative_angle = out.angle;
-alternative_angle(out.angle > pi/4) = out.angle(out.angle > pi/4) - pi/2;
-if std(out.angle) < std(alternative_angle)
-	semilogx(out.fes / NP, out.angle / pi * 180, 'k');
-	axis([0, Gmax, 0, 90]);
-else
-	semilogx(out.fes / NP, alternative_angle / pi * 180, 'k');
-	axis([0, Gmax, -45, 45]);
+if isfield(solverOptions, 'dimensionFactor')
+	NP = D * solverOptions.dimensionFactor;
+	Gmax = maxfunevals / NP;
+	alternative_angle = out.angle;
+	alternative_angle(out.angle > pi/4) = out.angle(out.angle > pi/4) - pi/2;
+	if std(out.angle) < std(alternative_angle)
+		semilogx(out.fes / NP, out.angle / pi * 180, 'k');
+		axis([0, Gmax, 0, 90]);
+	else
+		semilogx(out.fes / NP, alternative_angle / pi * 180, 'k');
+		axis([0, Gmax, -45, 45]);
+	end
+	xlabel('Generation');
+	ylabel('Angle (degree)');
+	title('Angle between the natural basis and the eigenvector basis');
 end
-xlabel('Generation');
-ylabel('Angle (degree)');
-title('Angle between the natural basis and the eigenvector basis');
 
 if isfield(out, 'mu_F')
 	figure;
