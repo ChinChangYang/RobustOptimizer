@@ -43,6 +43,7 @@ for Di = 1 : numel(D)
 		MaxFEsi = MaxFEs(Mi);
 		for NPi = 1 : numel(NP)
 			solverOptions.dimensionFactor = NP(NPi)/D(Di);
+			solverOptions.NP = NP(NPi);
 			for Fi = 1 : numel(fitfun)
 				fitfuni = fitfun{Fi};
 				fprintf('D: %d, MaxFEs: %.4E, NP: %d; fitfun: %s\n', ...
