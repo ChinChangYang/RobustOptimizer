@@ -1,9 +1,10 @@
-function [xmin, fmin, out] = mshadeeig(fitfun, lb, ub, maxfunevals, options)
-% MSHADEEIG Mutable SHADE/EIG algorithm
-% MSHADEEIG(fitfun, lb, ub, maxfunevals) minimize the function fitfun in
+function [xmin, fmin, out] = mshadeeig_m(fitfun, lb, ub, maxfunevals, options)
+% MSHADEEIG_M Mutable SHADE/EIG algorithm (Replace the most failed
+% individual) 
+% MSHADEEIG_M(fitfun, lb, ub, maxfunevals) minimize the function fitfun in
 % box constraints [lb, ub] with the maximal function evaluations
 % maxfunevals.
-% MSHADEEIG(..., options) minimize the function by solver options.
+% MSHADEEIG_M(..., options) minimize the function by solver options.
 if nargin <= 4
 	options = [];
 end
@@ -14,12 +15,17 @@ defaultOptions.F = 0.5;
 defaultOptions.CR = 0.5;
 defaultOptions.R = 0.5;
 defaultOptions.cc = 0.1;
+defaultOptions.pmin = 2/100;
+defaultOptions.pmax = 0.2;
+defaultOptions.deltaF = 0.1;
+defaultOptions.deltaCR = 0.1;
+defaultOptions.deltaR = 0.1;
 defaultOptions.Display = 'off';
 defaultOptions.RecordPoint = 100;
 defaultOptions.ftarget = -Inf;
 defaultOptions.TolFun = 0;
 defaultOptions.TolX = 0;
-defaultOptions.TolStagnationIteration = 30;
+defaultOptions.TolStagnationIteration = 100;
 defaultOptions.initial.X = [];
 defaultOptions.initial.f = [];
 defaultOptions.initial.A = [];
@@ -30,13 +36,15 @@ defaultOptions.initial.MR = [];
 options = setdefoptions(options, defaultOptions);
 NP = options.NP;
 H = options.H;
+pmin = options.pmin;
+pmax = options.pmax;
 cc = options.cc;
+deltaF = options.deltaF;
+deltaCR = options.deltaCR;
+deltaR = options.deltaR;
 isDisplayIter = strcmp(options.Display, 'iter');
 RecordPoint = max(0, floor(options.RecordPoint));
 ftarget = options.ftarget;
-TolFun = options.TolFun;
-TolX = options.TolX;
-TolStagnationIteration = options.TolStagnationIteration;
 
 if ~isempty(options.initial)
 	options.initial = setdefoptions(options.initial, defaultOptions.initial);
@@ -63,7 +71,6 @@ end
 % Initialize variables
 counteval = 0;
 countiter = 1;
-countStagnation = 0;
 out = initoutput(RecordPoint, D, NP, maxfunevals, ...
 	'MF', 'MCR', 'MR', 'FC1Q', 'FCMEDIAN', 'FC3Q');
 
@@ -89,6 +96,11 @@ if isempty(fx)
 	end
 end
 
+% Initialize archive
+if isempty(A)
+	A = X;
+end
+
 % Sort
 [fx, fidx] = sort(fx);
 X = X(:, fidx);
@@ -103,7 +115,7 @@ if isempty(MCR)
 	MCR = options.CR * ones(H, 1);
 end
 
-% MP
+% MR
 if isempty(MR)
 	MR = options.R * ones(H, 1);
 end
@@ -118,11 +130,10 @@ C = cov(X');
 k = 1;
 r = zeros(1, NP);
 p = zeros(1, NP);
-pmin = 2 / NP;
 A_size = 0;
 fu = zeros(1, NP);
-S_CR = zeros(1, NP);	% Set of crossover rate
-S_F = zeros(1, NP);		% Set of scaling factor
+S_CR = zeros(1, NP);	% Set of crossover rates
+S_F = zeros(1, NP);		% Set of scaling factors
 S_df = zeros(1, NP);	% Set of df
 S_R = zeros(1, NP);		% Set of eigenvector ratio
 FC = zeros(1, NP);		% Fail Counter
@@ -149,13 +160,13 @@ while true
 	% Termination conditions
 	outofmaxfunevals = counteval > maxfunevals - NP;
 	reachftarget = min(fx) <= ftarget;
-	fitnessconvergence = isConverged(fx, TolFun);
-	solutionconvergence = isConverged(X, TolX);
-	stagnation = countStagnation >= TolStagnationIteration;
 	
 	% Convergence conditions	
-	if outofmaxfunevals || reachftarget || fitnessconvergence || ...
-			solutionconvergence || stagnation
+	if outofmaxfunevals
+		out.stopflag = 'outofmaxfunevals';
+		break;
+	elseif reachftarget
+		out.stopflag = 'reachftarget';
 		break;
 	end
 	
@@ -166,7 +177,7 @@ while true
 	CR = zeros(1, NP);	
 	for i = 1 : NP
 		r(i) = floor(1 + H * rand);
-		CR(i) = MCR(r(i)) + 0.1 * randn;
+		CR(i) = MCR(r(i)) + deltaCR * randn;
 	end
 	
 	CR(CR > 1) = 1;
@@ -176,7 +187,7 @@ while true
 	F = zeros(1, NP);
 	for i = 1 : NP
 		while F(i) <= 0
-			F(i) = cauchyrnd(MF(r(i)), 0.1);
+			F(i) = cauchyrnd(MF(r(i)), deltaF);
 		end
 		
 		if F(i) > 1
@@ -187,7 +198,7 @@ while true
 	% Eigenvector ratio
 	R = zeros(1, NP);	
 	for i = 1 : NP
-		R(i) = MR(r(i)) + 0.1 * randn;
+		R(i) = MR(r(i)) + deltaR * randn;
 	end
 	
 	R(R > 1) = 1;
@@ -195,7 +206,7 @@ while true
 	
 	% pbest
 	for i = 1 : NP
-		p(i) = pmin + rand * (0.2 - pmin);
+		p(i) = pmin + rand * (pmax - pmin);
 	end
 	
 	XA = [X, A];
@@ -273,7 +284,6 @@ while true
 	end
 	
 	% Selection
-	FailedIteration = true;
 	for i = 1 : NP		
 		if fu(i) < fx(i)
 			nS = nS + 1;
@@ -286,19 +296,44 @@ while true
 			FC(i)		= 0;
 			
 			if A_size < NP
-				A = [A, X(:, i)];
 				A_size = A_size + 1;
+				A(:, A_size) = X(:, i);
 			else
 				ri = floor(1 + NP * rand);
 				A(:, ri) = X(:, i);
 			end
-						
-			FailedIteration = false;
 		elseif fu(i) == fx(i)
 			X(:, i) = U(:, i);
 			fx(i)	= fu(i);
-		else			
+		else % NEW
 			FC(i) = FC(i) + 1;
+			for j = 1 : floor(0.02 * FC(i))
+				irand = 1 + floor(NP * rand);				
+				if fu(i) < fx(irand)
+					nS = nS + 1;
+					S_CR(nS)	= CR(i);
+					S_F(nS)		= F(i);
+					S_df(nS)	= abs(fu(i) - fx(irand));
+					S_R(nS)		= R(i);
+					X(:, irand)	= U(:, i);
+					fx(irand)	= fu(i);
+					FC(i)		= 0;
+					
+					if A_size < NP
+						A_size = A_size + 1;
+						A(:, A_size) = X(:, irand);
+					else
+						ri = floor(1 + NP * rand);
+						A(:, ri) = X(:, irand);
+					end
+					
+					break;
+				elseif fu(i) == fx(irand)
+					X(:, irand) = U(:, i);
+					fx(irand)	= fu(i);
+					break;
+				end
+			end
 		end
 	end
 	
@@ -306,7 +341,7 @@ while true
 	if nS > 0
 		w = S_df(1 : nS) ./ sum(S_df(1 : nS));
 		MCR(k) = sum(w .* S_CR(1 : nS));
-		MF(k) = sum(w .* S_F(1 : nS) .* S_F(1 : nS)) / sum(w .* S_F(1 : nS));
+		MF(k) = sum(w .* S_F(1 : nS) .* S_F(1 : nS)) / sum(w .* S_F(1 : nS));		
 		MR(k) = sum(w .* S_R(1 : nS));
 		k = k + 1;
 		if k > H
@@ -333,13 +368,6 @@ while true
 	
 	% Iteration counter
 	countiter = countiter + 1;
-	
-	% Stagnation iteration
-	if FailedIteration
-		countStagnation = countStagnation + 1;
-	else
-		countStagnation = 0;
-	end	
 end
 
 fmin = fx(1);

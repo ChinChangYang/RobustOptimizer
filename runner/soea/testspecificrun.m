@@ -2,8 +2,8 @@
 %function, maximal function evaluations.
 startTime = tic;
 close all;
-solver = 'mshadeeig_g';
-fitfun = 'cec13_f10';
+solver = 'mshadeeig_m';
+fitfun = 'cec13_f9';
 D = 30;
 maxfunevals = D * 1e4;
 solverOptions.nonlcon = [];
@@ -25,7 +25,7 @@ solverOptions.nonlcon = [];
 solverOptions.TolX = 1e-8;
 solverOptions.TolFun = 0;
 solverOptions.TolStagnationIteration = 100;
-solverOptions.ftarget = -Inf;
+solverOptions.ftarget = 0;
 solverOptions.Restart = 0;
 solverOptions.Display = 'off';
 solverOptions.RecordPoint = 1000;
@@ -255,6 +255,19 @@ if isfield(out, 'MPMAX')
 	title(sprintf('Solve %s by %s', fitfun, solver));
 	xlabel('FEs');
 	ylabel('MPMAX');
+end
+
+if isfield(out, 'FCMEDIAN')
+	figure;
+	plot(out.fes, out.FCMEDIAN, 'b');
+	hold on;
+	plot(out.fes, out.FC1Q, 'r');
+	plot(out.fes, out.FC3Q, 'g');
+	title(sprintf('Solve %s by %s', fitfun, solver));
+	xlabel('FEs');
+	ylabel('Fail Counter');
+	legend('1Q', 'MEDIAN', '3Q');
+% 	print(sprintf('%s.tiff', fitfun), '-dtiff');
 end
 
 figure;
