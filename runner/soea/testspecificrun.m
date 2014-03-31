@@ -2,8 +2,8 @@
 %function, maximal function evaluations.
 startTime = tic;
 close all;
-solver = 'mshadeeig_m';
-fitfun = 'cec13_f9';
+solver = 'mshadeeig_f';
+fitfun = 'cec13_f28';
 D = 30;
 maxfunevals = D * 1e4;
 solverOptions.nonlcon = [];
