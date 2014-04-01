@@ -6,8 +6,8 @@ clear;
 close all;
 startTime = tic;
 date = datestr(now, 'yyyymmddHHMM');
-RUN = 36;
-cc = 10.^(-5:0.5:-1);
+RUN = 16;
+cc = 10.^linspace(-2,0,10);
 MaxFEs = 3e5;
 D = 30;
 fitfun = {'cec13_f1', 'cec13_f2', 'cec13_f3', 'cec13_f4', ...
@@ -19,7 +19,8 @@ fitfun = {'cec13_f1', 'cec13_f2', 'cec13_f3', 'cec13_f4', ...
 		'cec13_f26', 'cec13_f27', 'cec13_f28'};
 error = zeros(RUN, numel(fitfun), numel(cc), numel(MaxFEs), numel(D));
 xstd = zeros(RUN, numel(fitfun), numel(cc), numel(MaxFEs), numel(D));
-solver = 'mshadeeig_s';
+solver = 'mshadeeig_f';
+solverOptions.ftarget = 0;
 solverOptions.Display = 'off';
 solverOptions.RecordPoint = 1;
 

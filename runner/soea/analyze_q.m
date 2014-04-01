@@ -7,11 +7,9 @@ close all;
 startTime = tic;
 date = datestr(now, 'yyyymmddHHMM');
 RUN = 32;
-NP = [4	5	6	8	10	12	15	19	24	30	37	47	58	73	91	...
-	114	142	178	222	278 347	434	542	678	847	1059];
-% MaxFEs = [3e4, 3e5, 3e6];
+Q = 10 : 10 : 100;
+% Q = [10, 100];
 MaxFEs = 3e5;
-% D = [10, 30, 50];
 D = 30;
 fitfun = {'cec13_f1', 'cec13_f2', 'cec13_f3', 'cec13_f4', ...
 		'cec13_f5', 'cec13_f6', 'cec13_f7', 'cec13_f8', 'cec13_f9', ...
@@ -20,9 +18,8 @@ fitfun = {'cec13_f1', 'cec13_f2', 'cec13_f3', 'cec13_f4', ...
 		'cec13_f18', 'cec13_f19', 'cec13_f20', 'cec13_f21', ...
 		'cec13_f22', 'cec13_f23', 'cec13_f24', 'cec13_f25', ...
 		'cec13_f26', 'cec13_f27', 'cec13_f28'};
-% fitfun = {'cec13_f1', 'cec13_f19'};
-error = zeros(RUN, numel(fitfun), numel(NP), numel(MaxFEs), numel(D));
-xstd = zeros(RUN, numel(fitfun), numel(NP), numel(MaxFEs), numel(D));
+error = zeros(RUN, numel(fitfun), numel(Q), numel(MaxFEs), numel(D));
+xstd = zeros(RUN, numel(fitfun), numel(Q), numel(MaxFEs), numel(D));
 solver = 'mshadeeig_a';
 solverOptions.ftarget = 0;
 solverOptions.Display = 'off';
@@ -33,13 +30,12 @@ for Di = 1 : numel(D)
 	ub = 100 * ones(D(Di), 1);
 	for Mi = 1 : numel(MaxFEs)
 		MaxFEsi = MaxFEs(Mi);
-		for NPi = 1 : numel(NP)
-			solverOptions.dimensionFactor = NP(NPi)/D(Di);
-			solverOptions.NP = NP(NPi);
+		for qi = 1 : numel(Q)
+			solverOptions.Q = Q(qi);
 			for Fi = 1 : numel(fitfun)
 				fitfuni = fitfun{Fi};
-				fprintf('D: %d, MaxFEs: %.4E, NP: %d; fitfun: %s\n', ...
-					D(Di), MaxFEsi, NP(NPi), fitfuni);
+				fprintf('D: %d, MaxFEs: %.4E, Q: %.4E; fitfun: %s\n', ...
+					D(Di), MaxFEsi, Q(qi), fitfuni);
 				parfor RUNi = 1 : RUN
 					[~, fmin, out] = ...
 						feval(solver, fitfuni, lb, ub, MaxFEsi, solverOptions);
@@ -47,17 +43,17 @@ for Di = 1 : numel(D)
 						fmin = 1e-8;
 					end
 					
-					error(RUNi, Fi, NPi, Mi, Di) = fmin;
-					xstd(RUNi, Fi, NPi, Mi, Di) = mean(out.xstd);
+					error(RUNi, Fi, qi, Mi, Di) = fmin;
+					xstd(RUNi, Fi, qi, Mi, Di) = mean(out.xstd);
 				end
 			end
 			
-			save(sprintf('analyze_np_%s.mat', date), ...
+			save(sprintf('analyze_Q_%s.mat', date), ...
 				'error', ...
 				'xstd', ...
 				'D', ...
 				'MaxFEs', ...
-				'NP', ...
+				'Q', ...
 				'RUN', ...
 				'fitfun', ...
 				'solver');
@@ -68,23 +64,23 @@ end
 mean_error = mean(error);
 [~, minidx] = min(mean_error, [], 3);
 minidx = reshape(minidx, numel(fitfun), numel(MaxFEs), numel(D));
-mean_error_bestnp = zeros(numel(fitfun), numel(MaxFEs), numel(D));
+mean_error_bestQ = zeros(numel(fitfun), numel(MaxFEs), numel(D));
 
 mean_xstd = mean(xstd);
 mean_xstd_best = min(min(mean_xstd, [], 3), [], 4);
 mean_xstd_best = reshape(mean_xstd_best, numel(fitfun), numel(D));
-mean_xstd_overall = mean(reshape(xstd, RUN * numel(fitfun), numel(NP), numel(MaxFEs), numel(D)));
-mean_xstd_overall = reshape(mean_xstd_overall, numel(NP), numel(MaxFEs), numel(D));
+mean_xstd_overall = mean(reshape(xstd, RUN * numel(fitfun), numel(Q), numel(MaxFEs), numel(D)));
+mean_xstd_overall = reshape(mean_xstd_overall, numel(Q), numel(MaxFEs), numel(D));
 
-mean_xstd_bestnp = zeros(numel(fitfun), numel(MaxFEs), numel(D));
+mean_xstd_bestQ = zeros(numel(fitfun), numel(MaxFEs), numel(D));
 
 for i = 1 : numel(fitfun)
 	for j = 1 : numel(MaxFEs)
 		for k = 1 : numel(D)
-			mean_error_bestnp(i, j, k) = ...
+			mean_error_bestQ(i, j, k) = ...
 				mean_error(1, i, minidx(i, j, k), j, k);
 			
-			mean_xstd_bestnp(i, j, k) = ...
+			mean_xstd_bestQ(i, j, k) = ...
 				mean_xstd(1, i, minidx(i, j, k), j, k);
 		end
 	end
@@ -95,11 +91,11 @@ for Di = 1 : numel(D)
 	for Mi = 1 : numel(MaxFEs)
 		for Fi = 1 : numel(fitfun)
 			errors_Fi = error(:, Fi, :, Mi, Di);
-			for NPi = 1 : numel(NP)
+			for qi = 1 : numel(Q)
 				for RUNi = 1 : RUN
-					norm_errors(RUNi, Fi, NPi, Mi, Di) = ...
+					norm_errors(RUNi, Fi, qi, Mi, Di) = ...
 						(1 - 1e-8) * ...
-						(error(RUNi, Fi, NPi, Mi, Di) - min(errors_Fi(:)) + 1e-8) ./ ...
+						(error(RUNi, Fi, qi, Mi, Di) - min(errors_Fi(:)) + 1e-8) ./ ...
 						(max(errors_Fi(:)) - min(errors_Fi(:)) + 1e-8) + ...
 						1e-8;
 				end
@@ -108,7 +104,7 @@ for Di = 1 : numel(D)
 	end
 end
 
-mean_norm_errors = mean(reshape(norm_errors, RUN * numel(fitfun), numel(NP), numel(MaxFEs), numel(D)));
+mean_norm_errors = mean(reshape(norm_errors, RUN * numel(fitfun), numel(Q), numel(MaxFEs), numel(D)));
 
 elapsed_time = toc(startTime);
 if elapsed_time < 60
@@ -121,12 +117,12 @@ else
 	fprintf('Elapsed time is %f days\n', elapsed_time/60/60/24);
 end
 
-save(sprintf('analyze_np_%s.mat', date), ...
+save(sprintf('analyze_Q_%s.mat', date), ...
 	'error', ...
 	'xstd', ...
 	'D', ...
 	'MaxFEs', ...
-	'NP', ...
+	'Q', ...
 	'RUN', ...
 	'fitfun', ...
 	'solver', ...

@@ -2,8 +2,8 @@
 %function, maximal function evaluations.
 startTime = tic;
 close all;
-solver = 'mshadeeig_f';
-fitfun = 'cec13_f28';
+solver = 'shadeeig';
+fitfun = 'cec13_f10';
 D = 30;
 maxfunevals = D * 1e4;
 solverOptions.nonlcon = [];
@@ -272,7 +272,8 @@ end
 
 figure;
 semilogy(out.fes, mean(out.xstd));
+title(sprintf('Solve %s by %s', fitfun, solver));
 xlabel('FEs');
-title('Std. of X solutions');
+ylabel('St. D. of X Targets');
 
 % toc(startTime);

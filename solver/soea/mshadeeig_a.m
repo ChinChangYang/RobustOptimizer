@@ -1,22 +1,22 @@
-function [xmin, fmin, out] = mshadeeig_f(fitfun, lb, ub, maxfunevals, options)
-% MSHADEEIG_F Mutable SHADE/EIG algorithm (Final) 
-% MSHADEEIG_F(fitfun, lb, ub, maxfunevals) minimize the function fitfun in
+function [xmin, fmin, out] = mshadeeig_a(fitfun, lb, ub, maxfunevals, options)
+% MSHADEEIG_A Mutable SHADE/EIG algorithm (Alternative) 
+% MSHADEEIG_A(fitfun, lb, ub, maxfunevals) minimize the function fitfun in
 % box constraints [lb, ub] with the maximal function evaluations
 % maxfunevals.
-% MSHADEEIG_F(..., options) minimize the function by solver options.
+% MSHADEEIG_A(..., options) minimize the function by solver options.
 if nargin <= 4
 	options = [];
 end
 
-defaultOptions.NP = 100;
-defaultOptions.H = 100;
+defaultOptions.NP = 114;
+defaultOptions.H = 114;
 defaultOptions.F = 0.5;
 defaultOptions.CR = 0.5;
 defaultOptions.R = 0.5;
 defaultOptions.cc = 0.1;
 defaultOptions.pmin = 2/100;
 defaultOptions.pmax = 0.2;
-defaultOptions.Q = 60;
+defaultOptions.Q = 50;
 defaultOptions.deltaF = 0.1;
 defaultOptions.deltaCR = 0.1;
 defaultOptions.deltaR = 0.1;
@@ -131,6 +131,7 @@ C = cov(X');
 k = 1;
 r = zeros(1, NP);
 p = zeros(1, NP);
+rf = zeros(1, NP);
 A_size = 0;
 fu = zeros(1, NP);
 S_CR = zeros(1, NP);	% Set of crossover rates
@@ -210,7 +211,17 @@ while true
 		p(i) = pmin + rand * (pmax - pmin);
 	end
 	
+	% Archive
 	XA = [X, A];
+	
+	% Emergency mode
+	for i = 1 : NP		
+		if FC(i) <= Q
+			rf(i) = i;
+		else
+			rf(i) = floor(1 + NP * rand);
+		end
+	end
 	
 	% Mutation
 	for i = 1 : NP
@@ -219,29 +230,29 @@ while true
 		
 		% Generate r1
 		r1 = floor(1 + NP * rand);
-		while i == r1
+		while rf(i) == r1
 			r1 = floor(1 + NP * rand);
 		end
 		
 		% Generate r2
 		r2 = floor(1 + (NP + A_size) * rand);
-		while i == r1 || r1 == r2
+		while rf(i) == r1 || r1 == r2
 			r2 = floor(1 + (NP + A_size) * rand);
 		end
-		
-		V(:, i) = X(:, i) + F(i) .* (X(:, pbest) - X(:, i)) ...
-			+ F(i) .* (X(:, r1) - XA(:, r2));
+				
+		V(:, i) = X(:, rf(i)) + F(rf(i)) .* (X(:, pbest) - X(:, rf(i))) ...
+			+ F(rf(i)) .* (X(:, r1) - XA(:, r2));
 	end
 	
 	[B, ~] = eig(C);
 	for i = 1 : NP
-		if rand < R(i)
+		if rand < R(rf(i))
 			% Rotational Crossover
-			XT(:, i) = B' * X(:, i);
+			XT(:, i) = B' * X(:, rf(i));
 			VT(:, i) = B' * V(:, i);
 			jrand = floor(1 + D * rand);			
 			for j = 1 : D
-				if rand < CR(i) || j == jrand
+				if rand < CR(rf(i)) || j == jrand
 					UT(j, i) = VT(j, i);
 				else
 					UT(j, i) = XT(j, i);
@@ -252,10 +263,10 @@ while true
 			% Binominal Crossover
 			jrand = floor(1 + D * rand);
 			for j = 1 : D
-				if rand < CR(i) || j == jrand
+				if rand < CR(rf(i)) || j == jrand
 					U(j, i) = V(j, i);
 				else
-					U(j, i) = X(j, i);
+					U(j, i) = X(j, rf(i));
 				end
 			end
 		end
@@ -265,9 +276,9 @@ while true
 	for i = 1 : NP
 		for j = 1 : D
 			if U(j, i) < lb(j)
-				U(j, i) = 0.5 * (lb(j) + X(j, i));
+				U(j, i) = 0.5 * (lb(j) + X(j, rf(i)));
 			elseif U(j, i) > ub(j)
-				U(j, i) = 0.5 * (ub(j) + X(j, i));
+				U(j, i) = 0.5 * (ub(j) + X(j, rf(i)));
 			end
 		end
 	end
@@ -288,10 +299,10 @@ while true
 	for i = 1 : NP		
 		if fu(i) < fx(i)
 			nS = nS + 1;
-			S_CR(nS)	= CR(i);
-			S_F(nS)		= F(i);
+			S_CR(nS)	= CR(rf(i));
+			S_F(nS)		= F(rf(i));
 			S_df(nS)	= abs(fu(i) - fx(i));
-			S_R(nS)		= R(i);
+			S_R(nS)		= R(rf(i));
 			X(:, i)		= U(:, i);
 			fx(i)		= fu(i);
 			FC(i)		= 0;
@@ -303,28 +314,8 @@ while true
 				ri = floor(1 + NP * rand);
 				A(:, ri) = X(:, i);
 			end
-		else % Loose Selection
-			irand = 1 + floor(NP * rand);
-			if fu(irand) < fx(i) && FC(i) >= Q
-				nS = nS + 1;
-				S_CR(nS)	= CR(irand);
-				S_F(nS)		= F(irand);
-				S_df(nS)	= abs(fu(irand) - fx(i));
-				S_R(nS)		= R(irand);
-				X(:, i)		= U(:, irand);
-				fx(i)		= fu(irand);
-				FC(i)		= 0;
-				
-				if A_size < NP
-					A_size = A_size + 1;
-					A(:, A_size) = X(:, i);
-				else
-					ri = floor(1 + NP * rand);
-					A(:, ri) = X(:, i);
-				end
-			else	
-				FC(i) = FC(i) + 1;
-			end
+		else
+			FC(i) = FC(i) + 1;
 		end
 	end
 	
