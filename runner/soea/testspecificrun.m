@@ -2,8 +2,8 @@
 %function, maximal function evaluations.
 startTime = tic;
 close all;
-solver = 'shadeeig';
-fitfun = 'cec13_f10';
+solver = 'mshadeeig_f';
+fitfun = 'cec13_f8';
 D = 30;
 maxfunevals = D * 1e4;
 solverOptions.nonlcon = [];
@@ -230,7 +230,7 @@ if isfield(out, 'MR')
 	plot(out.fes, out.MR);
 	title(sprintf('Solve %s by %s', fitfun, solver));
 	xlabel('FEs');
-	ylabel('MR');
+	ylabel('Mean of R');
 end
 
 if isfield(out, 'countStagnation')
@@ -259,13 +259,13 @@ end
 
 if isfield(out, 'FCMEDIAN')
 	figure;
-	plot(out.fes, out.FCMEDIAN, 'b');
 	hold on;
-	plot(out.fes, out.FC1Q, 'r');
-	plot(out.fes, out.FC3Q, 'g');
+	plot(out.fes, out.FC1Q, 'g');
+	plot(out.fes, out.FCMEDIAN, 'r');
+	plot(out.fes, out.FC3Q, 'b');
 	title(sprintf('Solve %s by %s', fitfun, solver));
 	xlabel('FEs');
-	ylabel('Fail Counter');
+	ylabel('Recent Consecutive Unsuccessful Trial Vectors');
 	legend('1Q', 'MEDIAN', '3Q');
 % 	print(sprintf('%s.tiff', fitfun), '-dtiff');
 end
@@ -274,6 +274,6 @@ figure;
 semilogy(out.fes, mean(out.xstd));
 title(sprintf('Solve %s by %s', fitfun, solver));
 xlabel('FEs');
-ylabel('St. D. of X Targets');
+ylabel('St. D. of Target Vectors');
 
 % toc(startTime);
