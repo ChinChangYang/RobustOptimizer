@@ -2,8 +2,8 @@
 %function, maximal function evaluations.
 startTime = tic;
 close all;
-solver = 'mshadeeig_f';
-fitfun = 'cec13_f8';
+solver = 'shade';
+fitfun = 'cec13_f3';
 D = 30;
 maxfunevals = D * 1e4;
 solverOptions.nonlcon = [];
@@ -22,16 +22,16 @@ solverOptions.nonlcon = [];
 % solverOptions.deltaCR = 0.1;
 % solverOptions.deltaR = 0.1;
 % solverOptions.deltaPMAX = 0.05;
-solverOptions.TolX = 1e-8;
-solverOptions.TolFun = 0;
-solverOptions.TolStagnationIteration = 100;
-solverOptions.ftarget = 0;
+% solverOptions.TolX = 1e-8;
+% solverOptions.TolFun = 0;
+% solverOptions.TolStagnationIteration = 100;
+solverOptions.ftarget = -Inf;
 solverOptions.Restart = 0;
 solverOptions.Display = 'off';
 solverOptions.RecordPoint = 1000;
 solverOptions.Noise = false;
-% lb = -5e50 * ones(D, 1);
-% ub = 5e50 * ones(D, 1);
+% lb = -5 * ones(D, 1);
+% ub = 5 * ones(D, 1);
 lb = -100 * ones(D, 1);
 ub = 100 * ones(D, 1);
 % lb = -6.4 * ones(D, 1);
@@ -119,8 +119,8 @@ semilogy(out.fes, out.cond);
 xlabel('FEs');
 title('Condition number');
 
-figure;
 if isfield(solverOptions, 'dimensionFactor')
+	figure;
 	NP = D * solverOptions.dimensionFactor;
 	Gmax = maxfunevals / NP;
 	alternative_angle = out.angle;

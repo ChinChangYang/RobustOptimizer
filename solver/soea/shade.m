@@ -17,7 +17,7 @@ defaultOptions.RecordPoint = 100;
 defaultOptions.ftarget = -Inf;
 defaultOptions.TolFun = 0;
 defaultOptions.TolX = 0;
-defaultOptions.TolStagnationIteration = 30;
+defaultOptions.TolStagnationIteration = Inf;
 defaultOptions.initial.X = [];
 defaultOptions.initial.f = [];
 defaultOptions.initial.A = [];
@@ -30,8 +30,6 @@ H = options.H;
 isDisplayIter = strcmp(options.Display, 'iter');
 RecordPoint = max(0, floor(options.RecordPoint));
 ftarget = options.ftarget;
-TolFun = options.TolFun;
-TolX = options.TolX;
 TolStagnationIteration = options.TolStagnationIteration;
 
 if ~isempty(options.initial)
@@ -128,13 +126,10 @@ while true
 	% Termination conditions
 	outofmaxfunevals = counteval > maxfunevals - NP;
 	reachftarget = min(fx) <= ftarget;
-	fitnessconvergence = isConverged(fx, TolFun);
-	solutionconvergence = isConverged(X, TolX);
 	stagnation = countStagnation >= TolStagnationIteration;
 	
 	% Convergence conditions	
-	if outofmaxfunevals || reachftarget || fitnessconvergence || ...
-			solutionconvergence || stagnation
+	if outofmaxfunevals || reachftarget || stagnation
 		break;
 	end
 	

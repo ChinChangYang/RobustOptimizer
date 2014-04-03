@@ -8,24 +8,22 @@ if nargin <= 4
 	options = [];
 end
 
-defaultOptions.NP = 100;
-defaultOptions.H = 100;
+defaultOptions.NP = 114;
+defaultOptions.H = 114;
 defaultOptions.F = 0.5;
 defaultOptions.CR = 0.5;
 defaultOptions.R = 0.5;
-defaultOptions.cc = 0.1;
+defaultOptions.cc = 0.0774;
 defaultOptions.pmin = 2/100;
 defaultOptions.pmax = 0.2;
-defaultOptions.Q = 60;
+defaultOptions.Q = 50;
 defaultOptions.deltaF = 0.1;
 defaultOptions.deltaCR = 0.1;
 defaultOptions.deltaR = 0.1;
 defaultOptions.Display = 'off';
 defaultOptions.RecordPoint = 100;
 defaultOptions.ftarget = -Inf;
-defaultOptions.TolFun = 0;
-defaultOptions.TolX = 0;
-defaultOptions.TolStagnationIteration = 100;
+defaultOptions.TolStagnationIteration = Inf;
 defaultOptions.initial.X = [];
 defaultOptions.initial.f = [];
 defaultOptions.initial.A = [];
@@ -46,6 +44,7 @@ deltaR = options.deltaR;
 isDisplayIter = strcmp(options.Display, 'iter');
 RecordPoint = max(0, floor(options.RecordPoint));
 ftarget = options.ftarget;
+TolStagnationIteration = options.TolStagnationIteration;
 
 if ~isempty(options.initial)
 	options.initial = setdefoptions(options.initial, defaultOptions.initial);
@@ -72,6 +71,7 @@ end
 % Initialize variables
 counteval = 0;
 countiter = 1;
+countStagnation = 0;
 out = initoutput(RecordPoint, D, NP, maxfunevals, ...
 	'MF', 'MCR', 'MR', 'FC1Q', 'FCMEDIAN', 'FC3Q');
 
@@ -161,6 +161,7 @@ while true
 	% Termination conditions
 	outofmaxfunevals = counteval > maxfunevals - NP;
 	reachftarget = min(fx) <= ftarget;
+	stagnation = countStagnation >= TolStagnationIteration;
 	
 	% Convergence conditions	
 	if outofmaxfunevals
@@ -168,6 +169,9 @@ while true
 		break;
 	elseif reachftarget
 		out.stopflag = 'reachftarget';
+		break;
+	elseif stagnation
+		out.stopflag = 'stagnation';
 		break;
 	end
 	
@@ -285,8 +289,10 @@ while true
 	end
 	
 	% Selection
+	FailedIteration = true;
 	for i = 1 : NP		
 		if fu(i) < fx(i)
+			FailedIteration = false;
 			nS = nS + 1;
 			S_CR(nS)	= CR(i);
 			S_F(nS)		= F(i);
@@ -306,6 +312,7 @@ while true
 		else % Loose Selection
 			irand = 1 + floor(NP * rand);
 			if fu(irand) < fx(i) && FC(i) >= Q
+				FailedIteration = false;
 				nS = nS + 1;
 				S_CR(nS)	= CR(irand);
 				S_F(nS)		= F(irand);
@@ -359,6 +366,13 @@ while true
 	
 	% Iteration counter
 	countiter = countiter + 1;
+	
+	% Stagnation iteration
+	if FailedIteration
+		countStagnation = countStagnation + 1;
+	else
+		countStagnation = 0;
+	end	
 end
 
 fmin = fx(1);
