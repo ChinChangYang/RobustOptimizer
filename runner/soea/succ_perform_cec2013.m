@@ -5,7 +5,7 @@ end
 clear;
 close all;
 startTime = tic;
-solvers = {'mshadeeig_l', 'mshadeeig_g'};
+solvers = {'debest1bin_s'};
 
 for isolver = 1 : numel(solvers)
 	date = datestr(now, 'yyyymmddHHMM');
@@ -23,6 +23,7 @@ for isolver = 1 : numel(solvers)
 		'cec13_f26', 'cec13_f27', 'cec13_f28'};
 	measureOptions.MaxFunEvalSet = measureOptions.Dimension * 1e4;
 	solverOptions.RecordPoint = 0;
+	solverOptions.ftarget = 0;
 	[allerr, allfes] = err_fes_cec13(solver, measureOptions, solverOptions);
 	[nmaxfunevals, nfunctions, nruns] = size(allerr);
 	succ_perform = zeros(nmaxfunevals, nfunctions);

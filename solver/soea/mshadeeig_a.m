@@ -16,15 +16,13 @@ defaultOptions.R = 0.5;
 defaultOptions.cc = 0.0774;
 defaultOptions.pmin = 2/100;
 defaultOptions.pmax = 0.2;
-defaultOptions.Q = 50;
+defaultOptions.Q = 70;
 defaultOptions.deltaF = 0.1;
 defaultOptions.deltaCR = 0.1;
 defaultOptions.deltaR = 0.1;
 defaultOptions.Display = 'off';
 defaultOptions.RecordPoint = 100;
 defaultOptions.ftarget = -Inf;
-defaultOptions.TolFun = 0;
-defaultOptions.TolX = 0;
 defaultOptions.TolStagnationIteration = 100;
 defaultOptions.initial.X = [];
 defaultOptions.initial.f = [];
@@ -236,7 +234,7 @@ while true
 		
 		% Generate r2
 		r2 = floor(1 + (NP + A_size) * rand);
-		while rf(i) == r1 || r1 == r2
+		while rf(i) == r2 || r1 == r2
 			r2 = floor(1 + (NP + A_size) * rand);
 		end
 				

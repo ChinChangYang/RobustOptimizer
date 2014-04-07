@@ -2,11 +2,13 @@
 %function, maximal function evaluations.
 startTime = tic;
 close all;
-solver = 'shade';
-fitfun = 'cec13_f3';
+solver = 'detargettobest1bin_s';
+fitfun = 'cec13_f11';
 D = 30;
 maxfunevals = D * 1e4;
 solverOptions.nonlcon = [];
+% solverOptions.Q = inf;
+solverOptions.Q = 70;
 % solverOptions.dimensionFactor = 5;
 % solverOptions.NP = 100;
 % solverOptions.H = 100;
@@ -267,6 +269,17 @@ if isfield(out, 'FCMEDIAN')
 	xlabel('FEs');
 	ylabel('Recent Consecutive Unsuccessful Trial Vectors');
 	legend('1Q', 'MEDIAN', '3Q');
+% 	print(sprintf('%s.tiff', fitfun), '-dtiff');
+end
+
+if isfield(out, 'FCMEAN')
+	figure;
+	hold on;
+	errorbar(out.FCMEAN, out.FCSTD);
+	axis([0, numel(out.FCMEAN), 0, max(out.FCMEAN) + 2 * max(out.FCSTD)]);
+	title(sprintf('Solve %s by %s', fitfun, solver));
+	xlabel('Function Evaluations');
+	ylabel('Recent Consecutive Unsuccessful Trial Vectors');
 % 	print(sprintf('%s.tiff', fitfun), '-dtiff');
 end
 

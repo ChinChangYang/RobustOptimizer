@@ -1,9 +1,9 @@
-function [xmin, fmin, out] = mshadeeig_f(fitfun, lb, ub, maxfunevals, options)
-% MSHADEEIG_F Mutable SHADE/EIG algorithm (Final) 
-% MSHADEEIG_F(fitfun, lb, ub, maxfunevals) minimize the function fitfun in
+function [xmin, fmin, out] = mshadeeig_d(fitfun, lb, ub, maxfunevals, options)
+% MSHADEEIG_D Mutable SHADE/EIG algorithm (Diversity) 
+% MSHADEEIG_D(fitfun, lb, ub, maxfunevals) minimize the function fitfun in
 % box constraints [lb, ub] with the maximal function evaluations
 % maxfunevals.
-% MSHADEEIG_F(..., options) minimize the function by solver options.
+% MSHADEEIG_D(..., options) minimize the function by solver options.
 if nargin <= 4
 	options = [];
 end
@@ -16,14 +16,14 @@ defaultOptions.R = 0.5;
 defaultOptions.cc = 0.0774;
 defaultOptions.pmin = 2/100;
 defaultOptions.pmax = 0.2;
-defaultOptions.Q = 50;
+defaultOptions.Q = 70;
 defaultOptions.deltaF = 0.1;
 defaultOptions.deltaCR = 0.1;
 defaultOptions.deltaR = 0.1;
 defaultOptions.Display = 'off';
 defaultOptions.RecordPoint = 100;
 defaultOptions.ftarget = -Inf;
-defaultOptions.TolStagnationIteration = Inf;
+defaultOptions.TolStagnationIteration = 100;
 defaultOptions.initial.X = [];
 defaultOptions.initial.f = [];
 defaultOptions.initial.A = [];
@@ -44,7 +44,6 @@ deltaR = options.deltaR;
 isDisplayIter = strcmp(options.Display, 'iter');
 RecordPoint = max(0, floor(options.RecordPoint));
 ftarget = options.ftarget;
-TolStagnationIteration = options.TolStagnationIteration;
 
 if ~isempty(options.initial)
 	options.initial = setdefoptions(options.initial, defaultOptions.initial);
@@ -71,7 +70,6 @@ end
 % Initialize variables
 counteval = 0;
 countiter = 1;
-countStagnation = 0;
 out = initoutput(RecordPoint, D, NP, maxfunevals, ...
 	'MF', 'MCR', 'MR', 'FC1Q', 'FCMEDIAN', 'FC3Q');
 
@@ -131,6 +129,9 @@ C = cov(X');
 k = 1;
 r = zeros(1, NP);
 p = zeros(1, NP);
+rt = zeros(1, NP);
+r1 = zeros(1, NP);
+r2 = zeros(1, NP);
 A_size = 0;
 fu = zeros(1, NP);
 S_CR = zeros(1, NP);	% Set of crossover rates
@@ -161,7 +162,6 @@ while true
 	% Termination conditions
 	outofmaxfunevals = counteval > maxfunevals - NP;
 	reachftarget = min(fx) <= ftarget;
-	stagnation = countStagnation >= TolStagnationIteration;
 	
 	% Convergence conditions	
 	if outofmaxfunevals
@@ -169,9 +169,6 @@ while true
 		break;
 	elseif reachftarget
 		out.stopflag = 'reachftarget';
-		break;
-	elseif stagnation
-		out.stopflag = 'stagnation';
 		break;
 	end
 	
@@ -214,38 +211,64 @@ while true
 		p(i) = pmin + rand * (pmax - pmin);
 	end
 	
+	% Archive
 	XA = [X, A];
+	
+	% Emergency mode
+	if sum(FC <= Q) >= 3
+		GoodIndices = find(FC <= Q);
+	else
+		[~, minFCindices] = min(FC);
+		GoodIndices = minFCindices(1 : 3);
+	end
+	
+	for i = 1 : NP		
+		if FC(i) <= Q
+			rt(i) = i;
+			
+			% Generate r1
+			r1(i) = floor(1 + NP * rand);
+			while rt(i) == r1(i)
+				r1(i) = floor(1 + NP * rand);
+			end
+			
+			% Generate r2
+			r2(i) = floor(1 + (NP + A_size) * rand);
+			while rt(i) == r1(i) || r1(i) == r2(i)
+				r2(i) = floor(1 + (NP + A_size) * rand);
+			end
+		else
+			rt(i) = GoodIndices(floor(1 + numel(GoodIndices) * rand));
+				
+			% Generate r1
+			r1(i) = GoodIndices(floor(1 + numel(GoodIndices) * rand));
+			
+			% Generate r2
+			r2(i) = GoodIndices(floor(1 + numel(GoodIndices) * rand));
+			while rt(i) == r2(i) || r1(i) == r2(i)
+				r2(i) = GoodIndices(floor(1 + numel(GoodIndices) * rand));
+			end
+		end
+	end
 	
 	% Mutation
 	for i = 1 : NP
 		% Generate pbest_idx
 		pbest = floor(1 + round(p(i) * NP) * rand);
-		
-		% Generate r1
-		r1 = floor(1 + NP * rand);
-		while i == r1
-			r1 = floor(1 + NP * rand);
-		end
-		
-		% Generate r2
-		r2 = floor(1 + (NP + A_size) * rand);
-		while i == r1 || r1 == r2
-			r2 = floor(1 + (NP + A_size) * rand);
-		end
-		
-		V(:, i) = X(:, i) + F(i) .* (X(:, pbest) - X(:, i)) ...
-			+ F(i) .* (X(:, r1) - XA(:, r2));
+				
+		V(:, i) = X(:, rt(i)) + F(rt(i)) .* (X(:, pbest) - X(:, rt(i))) ...
+			+ F(rt(i)) .* (X(:, r1(i)) - XA(:, r2(i)));
 	end
 	
 	[B, ~] = eig(C);
 	for i = 1 : NP
-		if rand < R(i)
+		if rand < R(rt(i))
 			% Rotational Crossover
-			XT(:, i) = B' * X(:, i);
+			XT(:, i) = B' * X(:, rt(i));
 			VT(:, i) = B' * V(:, i);
 			jrand = floor(1 + D * rand);			
 			for j = 1 : D
-				if rand < CR(i) || j == jrand
+				if rand < CR(rt(i)) || j == jrand
 					UT(j, i) = VT(j, i);
 				else
 					UT(j, i) = XT(j, i);
@@ -256,10 +279,10 @@ while true
 			% Binominal Crossover
 			jrand = floor(1 + D * rand);
 			for j = 1 : D
-				if rand < CR(i) || j == jrand
+				if rand < CR(rt(i)) || j == jrand
 					U(j, i) = V(j, i);
 				else
-					U(j, i) = X(j, i);
+					U(j, i) = X(j, rt(i));
 				end
 			end
 		end
@@ -269,9 +292,9 @@ while true
 	for i = 1 : NP
 		for j = 1 : D
 			if U(j, i) < lb(j)
-				U(j, i) = 0.5 * (lb(j) + X(j, i));
+				U(j, i) = 0.5 * (lb(j) + X(j, rt(i)));
 			elseif U(j, i) > ub(j)
-				U(j, i) = 0.5 * (ub(j) + X(j, i));
+				U(j, i) = 0.5 * (ub(j) + X(j, rt(i)));
 			end
 		end
 	end
@@ -289,15 +312,13 @@ while true
 	end
 	
 	% Selection
-	FailedIteration = true;
 	for i = 1 : NP		
 		if fu(i) < fx(i)
-			FailedIteration = false;
 			nS = nS + 1;
-			S_CR(nS)	= CR(i);
-			S_F(nS)		= F(i);
+			S_CR(nS)	= CR(rt(i));
+			S_F(nS)		= F(rt(i));
 			S_df(nS)	= abs(fu(i) - fx(i));
-			S_R(nS)		= R(i);
+			S_R(nS)		= R(rt(i));
 			X(:, i)		= U(:, i);
 			fx(i)		= fu(i);
 			FC(i)		= 0;
@@ -309,29 +330,8 @@ while true
 				ri = floor(1 + NP * rand);
 				A(:, ri) = X(:, i);
 			end
-		else % Aggressive Selection
-			irand = 1 + floor(NP * rand);
-			if fu(irand) < fx(i) && FC(i) >= Q
-				FailedIteration = false;
-				nS = nS + 1;
-				S_CR(nS)	= CR(irand);
-				S_F(nS)		= F(irand);
-				S_df(nS)	= abs(fu(irand) - fx(i));
-				S_R(nS)		= R(irand);
-				X(:, i)		= U(:, irand);
-				fx(i)		= fu(irand);
-				FC(i)		= 0;
-				
-				if A_size < NP
-					A_size = A_size + 1;
-					A(:, A_size) = X(:, i);
-				else
-					ri = floor(1 + NP * rand);
-					A(:, ri) = X(:, i);
-				end
-			else	
-				FC(i) = FC(i) + 1;
-			end
+		else
+			FC(i) = FC(i) + 1;
 		end
 	end
 	
@@ -366,13 +366,6 @@ while true
 	
 	% Iteration counter
 	countiter = countiter + 1;
-	
-	% Stagnation iteration
-	if FailedIteration
-		countStagnation = countStagnation + 1;
-	else
-		countStagnation = 0;
-	end	
 end
 
 fmin = fx(1);
