@@ -1,5 +1,5 @@
 function [xmin, fmin, out] = derand1bin(fitfun, lb, ub, maxfunevals, options)
-% DERAND1BIN DE/rand/1/bin with reflection constraint handling
+% DERAND1BIN DE/RAND/1/BIN
 % DERAND1BIN(fitfun, lb, ub, maxfunevals) minimize the function fitfun in
 % box constraints [lb, ub] with the maximal function evaluations
 % maxfunevals.
@@ -8,156 +8,93 @@ if nargin <= 4
 	options = [];
 end
 
-defaultOptions.dimensionFactor = 5;
+defaultOptions.NP = 100;
 defaultOptions.F = 0.7;
 defaultOptions.CR = 0.5;
 defaultOptions.Display = 'off';
 defaultOptions.RecordPoint = 100;
 defaultOptions.ftarget = -Inf;
-defaultOptions.TolFun = eps;
-defaultOptions.TolX = 100 * eps;
-defaultOptions.TolStagnationIteration = 20;
+defaultOptions.TolStagnationIteration = Inf;
 defaultOptions.initial.X = [];
 defaultOptions.initial.f = [];
 
-defaultOptions.TolCon = 1e-6;
-defaultOptions.nonlcon = [];
-defaultOptions.initial.cm = []; % Constraint violation measure
-defaultOptions.initial.nc = []; % Number of violated constraints
-
 options = setdefoptions(options, defaultOptions);
-dimensionFactor = options.dimensionFactor;
-CR = options.CR;
 F = options.F;
+CR = options.CR;
 isDisplayIter = strcmp(options.Display, 'iter');
 RecordPoint = max(0, floor(options.RecordPoint));
 ftarget = options.ftarget;
-TolFun = options.TolFun;
-TolX = options.TolX;
 TolStagnationIteration = options.TolStagnationIteration;
-TolCon = options.TolCon;
-nonlcon = options.nonlcon;
+
+D = numel(lb);
 
 if ~isempty(options.initial)
 	options.initial = setdefoptions(options.initial, defaultOptions.initial);
 	X = options.initial.X;
-	f = options.initial.f;
-	cm = options.initial.cm;
-	nc = options.initial.nc;
+	fx = options.initial.f;
 else
 	X = [];
-	f = [];
-	cm = [];
-	nc = [];
+	fx = [];
 end
 
-D = numel(lb);
-if isempty(X)
-	NP = ceil(dimensionFactor * D);
+if isempty(X)	
+	NP = options.NP;
 else
 	[~, NP] = size(X);
 end
 
 % Initialize variables
 counteval = 0;
-countcon = 0;
 countiter = 1;
 countStagnation = 0;
-out = initoutput(RecordPoint, D, NP, maxfunevals);
+out = initoutput(RecordPoint, D, NP, maxfunevals, ...
+	'FC');
 
 % Initialize contour data
 if isDisplayIter
-	[XX, YY, ZZ] = preparecontourdata(D, lb, ub, fitfun);
+	[XX, YY, ZZ] = advcontourdata(D, lb, ub, fitfun);
 end
 
 % Initialize population
 if isempty(X)
-	if NP < 1e1
-		LHS = lhsdesign(NP, D, 'iteration', 10)';
-	elseif NP < 1e2
-		LHS = lhsdesign(NP, D, 'iteration', 2)';
-	else
-		LHS = rand(D, NP);
-	end
-	
 	X = zeros(D, NP);
 	for i = 1 : NP
-		X(:, i) = lb + (ub - lb) .* LHS(:, i);
-	end
-end
-
-% Constraint violation measure
-if isempty(cm) || isempty(nc)
-	cm = zeros(1, NP);
-	nc = zeros(1, NP);
-	
-	for i = 1 : NP
-		clb = lb - X(:, i);
-		cub = X(:, i) - ub;
-		cm(i) = sum(clb(clb > 0)) + sum(cub(cub > 0));
-		nc(i) = sum(clb > 0) + sum(cub > 0);
-	end
-	
-	if ~isempty(nonlcon)
-		for i = 1 : NP
-			[c, ceq] = feval(nonlcon, X(:, i));
-			countcon = countcon + 1;
-			cm(i) = cm(i) + sum(c(c > 0)) + sum(ceq(ceq > 0));
-			nc(i) = nc(i) + sum(c > 0) + sum(ceq > 0);
-		end
+		X(:, i) = lb + (ub - lb) .* rand(D, 1);
 	end
 end
 
 % Evaluation
-if isempty(f)
-	f = zeros(1, NP);
+if isempty(fx)
+	fx = zeros(1, NP);
 	for i = 1 : NP
-		if nc(i) > 0
-			f(i) = inf;
-		else
-			f(i) = feval(fitfun, X(:, i));
-			counteval = counteval + 1;
-		end
+		fx(i) = feval(fitfun, X(:, i));
+		counteval = counteval + 1;
 	end
 end
 
 % Sort
-pf = zeros(1, NP);
-nf = f;
-nf(isinf(nf)) = [];
-nfmax = max(nf);
-nfmin = min(nf);
-ncm = cm;
-ncmmax = max(ncm);
-ncmmin = min(ncm);
-
-for i = 1 : NP
-	if nc(i) == 0
-		pf(i) = (f(i) - nfmin) / (nfmax - nfmin + eps);
-	else
-		pf(i) = nc(i) + (ncm(i) - ncmmin) / (ncmmax - ncmmin + eps);
-	end
-end
-
-[pf, pfidx] = sort(pf);
-f = f(pfidx);
-X = X(:, pfidx);
-cm = cm(pfidx);
-nc = nc(pfidx);
+[fx, fidx] = sort(fx);
+X = X(:, fidx);
 
 % Initialize variables
 V = X;
 U = X;
-cm_u = cm;
-nc_u = nc;
+fu = zeros(1, NP);
+FC = zeros(1, NP);		% Consecutive Failure Counter
+rt = zeros(1, NP);
+r1 = zeros(1, NP);
+r2 = zeros(1, NP);
+r3 = zeros(1, NP);
 
 % Display
 if isDisplayIter
-	displayitermessages(X, U, f, countiter, XX, YY, ZZ);
+	displayitermessages(...
+		X, U, fx, countiter, XX, YY, ZZ);
 end
 
 % Record
-out = updateoutput(out, X, f, counteval);
+out = updateoutput(out, X, fx, counteval, countiter, ...
+	'FC', FC);
 
 % Iteration counter
 countiter = countiter + 1;
@@ -165,29 +102,37 @@ countiter = countiter + 1;
 while true
 	% Termination conditions
 	outofmaxfunevals = counteval > maxfunevals - NP;
-	reachftarget = min(f) <= ftarget;
-	fitnessconvergence = all(nc == 0) && isConverged(f, TolFun) ...
-		&& isConverged(cm, TolCon);
-	solutionconvergence = isConverged(X, TolX);
-	stagnation = countStagnation >= TolStagnationIteration;
-	
-	% Convergence conditions
-	if outofmaxfunevals || reachftarget || fitnessconvergence || ...
-			solutionconvergence || stagnation
+	reachftarget = min(fx) <= ftarget;
+	stagnation = countStagnation >= TolStagnationIteration;	
+	if outofmaxfunevals || reachftarget || stagnation
 		break;
 	end
 	
-	% Mutation
 	for i = 1 : NP
-		r1 = floor(1 + NP * rand);
-		r2 = floor(1 + NP * rand);
-		r3 = r2;
+		rt(i) = i;
 		
-		while r2 == r3
-			r3 = floor(1 + NP * rand);
+		% Generate r1
+		r1(i) = floor(1 + NP * rand);
+		while rt(i) == r1(i)
+			r1(i) = floor(1 + NP * rand);
 		end
 		
-		V(:, i) = X(:, r1) + F * (X(:, r2) - X(:, r3));
+		% Generate r2
+		r2(i) = floor(1 + NP * rand);
+		while rt(i) == r2(i) || r1(i) == r2(i)
+			r2(i) = floor(1 + NP * rand);
+		end
+		
+		% Generate r3
+		r3(i) = floor(1 + NP * rand);
+		while rt(i) == r3(i) || r1(i) == r3(i) || r2(i) == r3(i)
+			r3(i) = floor(1 + NP * rand);
+		end
+	end
+	
+	% Mutation
+	for i = 1 : NP		
+		V(:, i) = X(:, r1(i)) + F .* (X(:, r2(i)) - X(:, r3(i)));
 	end
 	
 	for i = 1 : NP
@@ -197,112 +142,55 @@ while true
 			if rand < CR || j == jrand
 				U(j, i) = V(j, i);
 			else
-				U(j, i) = X(j, i);
+				U(j, i) = X(j, rt(i));
 			end
 		end
 	end
 	
-	% Constraint reflection
+	% Correction for outside of boundaries
 	for i = 1 : NP
 		for j = 1 : D
-			for k = 1 : 3
-				if U(j, i) < lb(j)
-					U(j, i) = 2 * lb(j) - U(j, i);
-				end
-				
-				if U(j, i) > ub(j)
-					U(j, i) = 2 * ub(j) - U(j, i);
-				end
-				
-				if U(j, i) >= lb(j) && U(j, i) <= ub(j)
-					break;
-				end
+			if U(j, i) < lb(j)
+				U(j, i) = 0.5 * (lb(j) + X(j, rt(i)));
+			elseif U(j, i) > ub(j)
+				U(j, i) = 0.5 * (ub(j) + X(j, rt(i)));
 			end
 		end
 	end
 	
 	% Display
 	if isDisplayIter
-		displayitermessages(X, U, f, countiter, XX, YY, ZZ);
+		displayitermessages(...
+			X, U, fx, countiter, XX, YY, ZZ);
 	end
 	
-	% Constraint violation measure
+	% Evaluation
 	for i = 1 : NP
-		clb = lb - U(:, i);
-		cub = U(:, i) - ub;
-		cm_u(i) = sum(clb(clb > 0)) + sum(cub(cub > 0));
-		nc_u(i) = sum(clb > 0) + sum(cub > 0);
-	end
-	
-	if ~isempty(nonlcon)
-		for i = 1 : NP
-			[c, ceq] = feval(nonlcon, U(:, i));
-			countcon = countcon + 1;
-			cm_u(i) = cm_u(i) + sum(c(c > 0)) + sum(ceq(ceq > 0));
-			nc_u(i) = nc_u(i) + sum(c > 0) + sum(ceq > 0);
-		end
+		fu(i) = feval(fitfun, U(:, i));
+		counteval = counteval + 1;
 	end
 	
 	% Selection
 	FailedIteration = true;
-	for i = 1 : NP
-		fui = inf;
-		
-		if nc(i) == 0 && nc_u(i) == 0
-			fui = feval(fitfun, U(:, i));
-			counteval = counteval + 1;
-			
-			if fui < f(i)
-				u_selected = true;
-			else
-				u_selected = false;
-			end
-		elseif nc(i) > nc_u(i)
-			u_selected = true;
-		elseif nc(i) < nc_u(i)
-			u_selected = false;
-		else % nvc(i) == nvc_u(i) && nvc(i) ~= 0 && nvc_u(i) ~= 0
-			if cm(i) > cm_u(i)
-				u_selected = true;
-			else
-				u_selected = false;
-			end
-		end			
-		
-		if u_selected
-			cm(i) = cm_u(i);
-			nc(i) = nc_u(i);
-			f(i) = fui;
-			X(:, i) = U(:, i);
+	for i = 1 : NP		
+		if fu(i) < fx(i)
+			X(:, i)		= U(:, i);
+			fx(i)		= fu(i);
 			FailedIteration = false;
-		end
-	end
-	
-	% Sort
-	nf = f;
-	nf(isinf(nf)) = [];
-	nfmax = max(nf);
-	nfmin = min(nf);
-	ncm = cm;
-	ncmmax = max(ncm);
-	ncmmin = min(ncm);
-	
-	for i = 1 : NP
-		if nc(i) == 0
-			pf(i) = (f(i) - nfmin) / (nfmax - nfmin + eps);
+			FC(i)		= 0;
 		else
-			pf(i) = nc(i) + (ncm(i) - ncmmin) / (ncmmax - ncmmin + eps);
+			FC(i) = FC(i) + 1;
 		end
 	end
 	
-	[pf, pfidx] = sort(pf);
-	f = f(pfidx);
-	X = X(:, pfidx);
-	cm = cm(pfidx);
-	nc = nc(pfidx);
+	% Sort	
+	[fx, fidx] = sort(fx);
+	X = X(:, fidx);
+	FC = FC(fidx);
 	
 	% Record
-	out = updateoutput(out, X, f, counteval);
+	out = updateoutput(out, X, fx, counteval, countiter, ...
+		'FC', FC);
 	
 	% Iteration counter
 	countiter = countiter + 1;
@@ -315,18 +203,9 @@ while true
 	end	
 end
 
-fmin = f(1);
-xmin = X(:, 1);
+[fmin, minindex] = min(fx);
+xmin = X(:, minindex);
 
-if fmin < out.bestever.fmin
-	out.bestever.fmin = fmin;
-	out.bestever.xmin = xmin;
-end
-
-final.cm = cm;
-final.nc = nc;
-
-out = finishoutput(out, X, f, counteval, ...
-	'final', final, ...
-	'countcon', countcon);
+out = finishoutput(out, X, fx, counteval, countiter, ...
+	'FC', zeros(NP, 1));
 end

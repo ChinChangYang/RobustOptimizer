@@ -1,9 +1,9 @@
-function [xmin, fmin, out] = detargettobest1bin_s(fitfun, lb, ub, maxfunevals, options)
-% DETARGETTOBEST1BIN_S DE/TARGET-TO-BEST/1/BIN with SV-Based Framework
-% DETARGETTOBEST1BIN_S(fitfun, lb, ub, maxfunevals) minimize the function fitfun in
+function [xmin, fmin, out] = debest2bin(fitfun, lb, ub, maxfunevals, options)
+% DEBEST2BIN DE/BEST/2/BIN
+% DEBEST2BIN(fitfun, lb, ub, maxfunevals) minimize the function fitfun in
 % box constraints [lb, ub] with the maximal function evaluations
 % maxfunevals.
-% DETARGETTOBEST1BIN_S(..., options) minimize the function by solver options.
+% DEBEST2BIN(..., options) minimize the function by solver options.
 if nargin <= 4
 	options = [];
 end
@@ -11,7 +11,6 @@ end
 defaultOptions.NP = 100;
 defaultOptions.F = 0.7;
 defaultOptions.CR = 0.5;
-defaultOptions.Q = 70;
 defaultOptions.Display = 'off';
 defaultOptions.RecordPoint = 100;
 defaultOptions.ftarget = -Inf;
@@ -22,7 +21,6 @@ defaultOptions.initial.f = [];
 options = setdefoptions(options, defaultOptions);
 F = options.F;
 CR = options.CR;
-Q = options.Q;
 isDisplayIter = strcmp(options.Display, 'iter');
 RecordPoint = max(0, floor(options.RecordPoint));
 ftarget = options.ftarget;
@@ -86,6 +84,8 @@ FC = zeros(1, NP);		% Consecutive Failure Counter
 rt = zeros(1, NP);
 r1 = zeros(1, NP);
 r2 = zeros(1, NP);
+r3 = zeros(1, NP);
+r4 = zeros(1, NP);
 
 % Display
 if isDisplayIter
@@ -109,52 +109,40 @@ while true
 		break;
 	end
 	
-	% Successful difference vectors
-	MINIMAL_NUM_INDICES = 3;
-	if sum(FC <= Q) >= MINIMAL_NUM_INDICES
-		GoodIndices = find(FC <= Q);
-	else
-		[~, sortFCindices] = sort(FC);
-		GoodIndices = sortFCindices(1 : MINIMAL_NUM_INDICES);
-	end
-	
-	for i = 1 : NP		
-		if FC(i) <= Q			
-			rt(i) = i;
-			
-			% Generate r1
+	for i = 1 : NP
+		rt(i) = i;
+		
+		% Generate r1
+		r1(i) = floor(1 + NP * rand);
+		while rt(i) == r1(i)
 			r1(i) = floor(1 + NP * rand);
-			while rt(i) == r1(i)
-				r1(i) = floor(1 + NP * rand);
-			end
-			
-			% Generate r2
+		end
+		
+		% Generate r2
+		r2(i) = floor(1 + NP * rand);
+		while rt(i) == r2(i) || r1(i) == r2(i)
 			r2(i) = floor(1 + NP * rand);
-			while rt(i) == r2(i) || r1(i) == r2(i)
-				r2(i) = floor(1 + NP * rand);
-			end
-		else
-			rt(i) = GoodIndices(floor(1 + numel(GoodIndices) * rand));
-			
-			% Generate r1
-			r1(i) = GoodIndices(floor(1 + numel(GoodIndices) * rand));
-			while rt(i) == r1(i)
-				r1(i) = GoodIndices(floor(1 + numel(GoodIndices) * rand));
-			end
-			
-			% Generate r2
-			r2(i) = GoodIndices(floor(1 + numel(GoodIndices) * rand));
-			while rt(i) == r2(i) || r1(i) == r2(i)
-				r2(i) = GoodIndices(floor(1 + numel(GoodIndices) * rand));
-			end
+		end
+		
+		% Generate r3
+		r3(i) = floor(1 + NP * rand);
+		while rt(i) == r3(i) || r1(i) == r3(i) || r2(i) == r3(i)
+			r3(i) = floor(1 + NP * rand);
+		end
+		
+		% Generate r4
+		r4(i) = floor(1 + NP * rand);
+		while rt(i) == r4(i) || r1(i) == r4(i) || r2(i) == r4(i) ...
+				|| r3(i) == r4(i)
+			r4(i) = floor(1 + NP * rand);
 		end
 	end
 	
 	% Mutation	
 	[~, bestindex] = min(fx);
 	for i = 1 : NP		
-		V(:, i) = X(:, rt(i)) + F .* (X(:, bestindex) - X(:, rt(i))) ...
-			 + F .* (X(:, r1(i)) - X(:, r2(i)));
+		V(:, i) = X(:, bestindex) + F .* (X(:, r1(i)) - X(:, r2(i))) ...
+			 + F .* (X(:, r3(i)) - X(:, r4(i)));
 	end
 	
 	for i = 1 : NP

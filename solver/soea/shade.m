@@ -9,14 +9,11 @@ if nargin <= 4
 end
 
 defaultOptions.NP = 100;
-defaultOptions.H = 100;
-defaultOptions.F = 0.5;
+defaultOptions.F = 0.7;
 defaultOptions.CR = 0.5;
 defaultOptions.Display = 'off';
 defaultOptions.RecordPoint = 100;
 defaultOptions.ftarget = -Inf;
-defaultOptions.TolFun = 0;
-defaultOptions.TolX = 0;
 defaultOptions.TolStagnationIteration = Inf;
 defaultOptions.initial.X = [];
 defaultOptions.initial.f = [];
@@ -25,8 +22,6 @@ defaultOptions.initial.MCR = [];
 defaultOptions.initial.MF = [];
 
 options = setdefoptions(options, defaultOptions);
-NP = options.NP;
-H = options.H;
 isDisplayIter = strcmp(options.Display, 'iter');
 RecordPoint = max(0, floor(options.RecordPoint));
 ftarget = options.ftarget;
@@ -48,8 +43,12 @@ else
 end
 
 D = numel(lb);
-if ~isempty(X)
+if isempty(X)	
+	NP = options.NP;
+	H = NP;
+else
 	[~, NP] = size(X);
+	H = NP;
 end
 
 % Initialize variables
@@ -57,7 +56,8 @@ counteval = 0;
 countiter = 1;
 countStagnation = 0;
 out = initoutput(RecordPoint, D, NP, maxfunevals, ...
-	'MF', 'MCR');
+	'MF', 'MCR', ...
+	'FC');
 
 % Initialize contour data
 if isDisplayIter
@@ -79,6 +79,11 @@ if isempty(fx)
 		fx(i) = feval(fitfun, X(:, i));
 		counteval = counteval + 1;
 	end
+end
+
+% Initialize archive
+if isempty(A)
+	A = X;
 end
 
 % Sort
@@ -107,6 +112,12 @@ fu = zeros(1, NP);
 S_CR = zeros(1, NP);	% Set of crossover rate
 S_F = zeros(1, NP);		% Set of scaling factor
 S_df = zeros(1, NP);	% Set of df
+FC = zeros(1, NP);		% Consecutive Failure Counter
+rt = zeros(1, NP);
+r1 = zeros(1, NP);
+r2 = zeros(1, NP);
+Chy = cauchyrnd(0, 0.1, NP);
+iChy = 1;
 
 % Display
 if isDisplayIter
@@ -115,9 +126,10 @@ if isDisplayIter
 end
 
 % Record
-out = updateoutput(out, X, fx, counteval, ...
-	'MF', mean(MF), ...
-	'MCR', mean(MCR));
+out = updateoutput(out, X, fx, counteval, countiter, ...
+	'MF', MF, ...
+	'MCR', MCR, ...
+	'FC', FC);
 
 % Iteration counter
 countiter = countiter + 1;
@@ -127,8 +139,6 @@ while true
 	outofmaxfunevals = counteval > maxfunevals - NP;
 	reachftarget = min(fx) <= ftarget;
 	stagnation = countStagnation >= TolStagnationIteration;
-	
-	% Convergence conditions	
 	if outofmaxfunevals || reachftarget || stagnation
 		break;
 	end
@@ -151,7 +161,12 @@ while true
 	F = zeros(1, NP);
 	for i = 1 : NP
 		while F(i) <= 0
-			F(i) = cauchyrnd(MF(r(i)), 0.1);
+			F(i) = MF(r(i)) + Chy(iChy);
+			if iChy < numel(Chy)
+				iChy = iChy + 1;
+			else
+				iChy = 1;
+			end
 		end
 		
 		if F(i) > 1
@@ -166,25 +181,29 @@ while true
 	
 	XA = [X, A];
 	
-	% Mutation
 	for i = 1 : NP
-		% Generate pbest_idx
-		pbest = floor(1 + round(p(i) * NP) * rand);
+		rt(i) = i;
 		
 		% Generate r1
-		r1 = floor(1 + NP * rand);
-		while i == r1
-			r1 = floor(1 + NP * rand);
+		r1(i) = floor(1 + NP * rand);
+		while rt(i) == r1(i)
+			r1(i) = floor(1 + NP * rand);
 		end
 		
 		% Generate r2
-		r2 = floor(1 + (NP + A_size) * rand);
-		while i == r1 || r1 == r2
-			r2 = floor(1 + (NP + A_size) * rand);
+		r2(i) = floor(1 + (NP + A_size) * rand);
+		while rt(i) == r1(i) || r1(i) == r2(i)
+			r2(i) = floor(1 + (NP + A_size) * rand);
 		end
+	end
+	
+	% Mutation
+	for i = 1 : NP
+		% Generate pbest_idx
+		pbest = floor(1 + round(p(rt(i)) * NP) * rand);
 		
-		V(:, i) = X(:, i) + F(i) .* (X(:, pbest) - X(:, i)) ...
-			+ F(i) .* (X(:, r1) - XA(:, r2));
+		V(:, i) = X(:, rt(i)) + F(rt(i)) .* (X(:, pbest) - X(:, rt(i))) ...
+			+ F(rt(i)) .* (X(:, r1(i)) - XA(:, r2(i)));
 	end
 	
 	for i = 1 : NP
@@ -194,7 +213,7 @@ while true
 			if rand < CR(i) || j == jrand
 				U(j, i) = V(j, i);
 			else
-				U(j, i) = X(j, i);
+				U(j, i) = X(j, rt(i));
 			end
 		end
 	end
@@ -203,9 +222,9 @@ while true
 	for i = 1 : NP
 		for j = 1 : D
 			if U(j, i) < lb(j)
-				U(j, i) = 0.5 * (lb(j) + X(j, i));
+				U(j, i) = 0.5 * (lb(j) + X(j, rt(i)));
 			elseif U(j, i) > ub(j)
-				U(j, i) = 0.5 * (ub(j) + X(j, i));
+				U(j, i) = 0.5 * (ub(j) + X(j, rt(i)));
 			end
 		end
 	end
@@ -227,24 +246,24 @@ while true
 	for i = 1 : NP		
 		if fu(i) < fx(i)
 			nS = nS + 1;
-			S_CR(nS)	= CR(i);
-			S_F(nS)		= F(i);
+			S_CR(nS)	= CR(rt(i));
+			S_F(nS)		= F(rt(i));
 			S_df(nS)	= abs(fu(i) - fx(i));
 			X(:, i)		= U(:, i);
 			fx(i)		= fu(i);
+			FC(i)		= 0;
 			
 			if A_size < NP
-				A = [A, X(:, i)];
 				A_size = A_size + 1;
+				A(:, A_size) = X(:, i);
 			else
 				ri = floor(1 + NP * rand);
 				A(:, ri) = X(:, i);
 			end
 			
 			FailedIteration = false;
-		elseif fu(i) == fx(i)
-			X(:, i) = U(:, i);
-			fx(i)	= fu(i);
+		else
+			FC(i) = FC(i) + 1;
 		end
 	end
 	
@@ -262,11 +281,13 @@ while true
 	% Sort	
 	[fx, fidx] = sort(fx);
 	X = X(:, fidx);
+	FC = FC(fidx);
 	
 	% Record
-	out = updateoutput(out, X, fx, counteval, ...
-		'MF', mean(MF), ...
-		'MCR', mean(MCR));
+	out = updateoutput(out, X, fx, counteval, countiter, ...
+		'MF', MF, ...
+		'MCR', MCR, ...
+		'FC', FC);
 	
 	% Iteration counter
 	countiter = countiter + 1;
@@ -279,20 +300,16 @@ while true
 	end	
 end
 
-fmin = fx(1);
-xmin = X(:, 1);
-
-if fmin < out.bestever.fmin
-	out.bestever.fmin = fmin;
-	out.bestever.xmin = xmin;
-end
+[fmin, minindex] = min(fx);
+xmin = X(:, minindex);
 
 final.A = A;
 final.MCR = MCR;
 final.MF = MF;
 
-out = finishoutput(out, X, fx, counteval, ...
+out = finishoutput(out, X, fx, counteval, countiter, ...
 	'final', final, ...
-	'MF', mean(MF), ...
-	'MCR', mean(MCR));
+	'MF', MF, ...
+	'MCR', MCR, ...
+	'FC', zeros(NP, 1));
 end

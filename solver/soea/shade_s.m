@@ -1,5 +1,5 @@
 function [xmin, fmin, out] = shade_s(fitfun, lb, ub, maxfunevals, options)
-% SHADE_S SHADE algorithm with SV-Based Mutation Operator
+% SHADE_S SHADE algorithm with SV-Based Framework
 % SHADE_S(fitfun, lb, ub, maxfunevals) minimize the function fitfun in
 % box constraints [lb, ub] with the maximal function evaluations
 % maxfunevals.
@@ -9,7 +9,7 @@ if nargin <= 4
 end
 
 defaultOptions.NP = 100;
-defaultOptions.F = 0.5;
+defaultOptions.F = 0.7;
 defaultOptions.CR = 0.5;
 defaultOptions.Q = 70;
 defaultOptions.Display = 'off';

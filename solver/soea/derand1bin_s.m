@@ -1,5 +1,5 @@
 function [xmin, fmin, out] = derand1bin_s(fitfun, lb, ub, maxfunevals, options)
-% DERAND1BIN_S DE/RAND/1/BIN with SV-Based Mutation Operator
+% DERAND1BIN_S DE/RAND/1/BIN with SV-Based Framework
 % DERAND1BIN_S(fitfun, lb, ub, maxfunevals) minimize the function fitfun in
 % box constraints [lb, ub] with the maximal function evaluations
 % maxfunevals.
