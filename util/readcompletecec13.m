@@ -1,5 +1,6 @@
 mainfilename = 'complete_cec13_201404081652.mat';
 subfilename = 'complete_cec13_201404081658.mat';
+xlsfilename = 'complete_cec13_201404081652.xlsx';
 
 % Generate Measurements
 load(mainfilename);
@@ -49,6 +50,16 @@ if isfield(allout{1, 1}, 'MCR')
 	end
 	MCR		= reshape(MCR, nruns * NP, nprogress, nfuncs);	
 end
+
+% Save to Excel
+xlswrite(xlsfilename, {'Mean'}, 'Error', 'A1');
+xlswrite(xlsfilename, errmean, 'Error', 'A2:A29');
+xlswrite(xlsfilename, {'St. D.'}, 'Error', 'B1');
+xlswrite(xlsfilename, errstd, 'Error', 'B2:B29');
+xlswrite(xlsfilename, {'SR'}, 'Error', 'C1');
+xlswrite(xlsfilename, succrate, 'Error', 'C2:C29');
+xlswrite(xlsfilename, G, 'Convergence', 'A1:U1');
+xlswrite(xlsfilename, errmedian, 'Convergence', 'A2:U29');
 
 % Convergence Graph (Example)
 figure;
