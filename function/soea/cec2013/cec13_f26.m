@@ -9,8 +9,5 @@ function f = cec13_f26(x)
 % g5: Rotated Griewank's Function f10
 x = reshape(x, numel(x), 1);
 f = cec13_func(x, 26) - 1200;
-if f < 1e-8
-	f = 0;
-end
 end
 

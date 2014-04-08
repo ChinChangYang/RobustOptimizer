@@ -9,15 +9,12 @@ if nargin <= 4
 end
 
 defaultOptions.NP = 100;
-defaultOptions.H = 100;
 defaultOptions.F = 0.5;
 defaultOptions.CR = 0.5;
 defaultOptions.Q = 70;
 defaultOptions.Display = 'off';
 defaultOptions.RecordPoint = 100;
 defaultOptions.ftarget = -Inf;
-defaultOptions.TolFun = 0;
-defaultOptions.TolX = 0;
 defaultOptions.TolStagnationIteration = Inf;
 defaultOptions.initial.X = [];
 defaultOptions.initial.f = [];
@@ -26,8 +23,6 @@ defaultOptions.initial.MCR = [];
 defaultOptions.initial.MF = [];
 
 options = setdefoptions(options, defaultOptions);
-NP = options.NP;
-H = options.H;
 Q = options.Q;
 isDisplayIter = strcmp(options.Display, 'iter');
 RecordPoint = max(0, floor(options.RecordPoint));
@@ -50,8 +45,12 @@ else
 end
 
 D = numel(lb);
-if ~isempty(X)
+if isempty(X)	
+	NP = options.NP;
+	H = NP;
+else
 	[~, NP] = size(X);
+	H = NP;
 end
 
 % Initialize variables
@@ -60,7 +59,7 @@ countiter = 1;
 countStagnation = 0;
 out = initoutput(RecordPoint, D, NP, maxfunevals, ...
 	'MF', 'MCR', ...
-	'FC1Q', 'FCMEDIAN', 'FC3Q', 'FCMEAN', 'FCSTD');
+	'FC');
 
 % Initialize contour data
 if isDisplayIter
@@ -119,6 +118,8 @@ FC = zeros(1, NP);		% Consecutive Failure Counter
 rt = zeros(1, NP);
 r1 = zeros(1, NP);
 r2 = zeros(1, NP);
+Chy = cauchyrnd(0, 0.1, NP);
+iChy = 1;
 
 % Display
 if isDisplayIter
@@ -127,14 +128,10 @@ if isDisplayIter
 end
 
 % Record
-out = updateoutput(out, X, fx, counteval, ...
-	'MF', mean(MF), ...
-	'MCR', mean(MCR), ...
-	'FC1Q', quantile(FC, 0.25), ...
-	'FCMEDIAN', median(FC), ...
-	'FC3Q', quantile(FC, 0.75), ...
-	'FCMEAN', mean(FC), ...
-	'FCSTD', std(FC));
+out = updateoutput(out, X, fx, counteval, countiter, ...
+	'MF', MF, ...
+	'MCR', MCR, ...
+	'FC', FC);
 
 % Iteration counter
 countiter = countiter + 1;
@@ -144,8 +141,6 @@ while true
 	outofmaxfunevals = counteval > maxfunevals - NP;
 	reachftarget = min(fx) <= ftarget;
 	stagnation = countStagnation >= TolStagnationIteration;
-	
-	% Convergence conditions	
 	if outofmaxfunevals || reachftarget || stagnation
 		break;
 	end
@@ -168,7 +163,12 @@ while true
 	F = zeros(1, NP);
 	for i = 1 : NP
 		while F(i) <= 0
-			F(i) = cauchyrnd(MF(r(i)), 0.1);
+			F(i) = MF(r(i)) + Chy(iChy);
+			if iChy < numel(Chy)
+				iChy = iChy + 1;
+			else
+				iChy = 1;
+			end
 		end
 		
 		if F(i) > 1
@@ -183,13 +183,22 @@ while true
 	
 	XA = [X, A];
 	
+	% Successful difference vectors
+	MINIMAL_NUM_INDICES = 3;
+	if sum(FC <= Q) >= MINIMAL_NUM_INDICES
+		GoodIndices = find(FC <= Q);
+	else
+		[~, sortFCindices] = sort(FC);
+		GoodIndices = sortFCindices(1 : MINIMAL_NUM_INDICES);
+	end
+	
 	for i = 1 : NP		
 		if FC(i) <= Q	
 			rt(i) = i;
 			
 			% Generate r1
 			r1(i) = floor(1 + NP * rand);
-			while i == r1(i)
+			while rt(i) == r1(i)
 				r1(i) = floor(1 + NP * rand);
 			end
 			
@@ -302,14 +311,10 @@ while true
 	FC = FC(fidx);
 	
 	% Record
-	out = updateoutput(out, X, fx, counteval, ...
-		'MF', mean(MF), ...
-		'MCR', mean(MCR), ...
-		'FC1Q', quantile(FC, 0.25), ...
-		'FCMEDIAN', median(FC), ...
-		'FC3Q', quantile(FC, 0.75), ...
-		'FCMEAN', mean(FC), ...
-		'FCSTD', std(FC));
+	out = updateoutput(out, X, fx, counteval, countiter, ...
+		'MF', MF, ...
+		'MCR', MCR, ...
+		'FC', FC);
 	
 	% Iteration counter
 	countiter = countiter + 1;
@@ -322,25 +327,16 @@ while true
 	end	
 end
 
-fmin = fx(1);
-xmin = X(:, 1);
-
-if fmin < out.bestever.fmin
-	out.bestever.fmin = fmin;
-	out.bestever.xmin = xmin;
-end
+[fmin, minindex] = min(fx);
+xmin = X(:, minindex);
 
 final.A = A;
 final.MCR = MCR;
 final.MF = MF;
 
-out = finishoutput(out, X, fx, counteval, ...
+out = finishoutput(out, X, fx, counteval, countiter, ...
 	'final', final, ...
-	'MF', mean(MF), ...
-	'MCR', mean(MCR), ...
-	'FC1Q', quantile(FC, 0.25), ...
-	'FCMEDIAN', median(FC), ...
-	'FC3Q', quantile(FC, 0.75), ...
-	'FCMEAN', mean(FC), ...
-	'FCSTD', std(FC));
+	'MF', MF, ...
+	'MCR', MCR, ...
+	'FC', zeros(NP, 1));
 end

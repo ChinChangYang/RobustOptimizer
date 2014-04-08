@@ -1,4 +1,4 @@
-function out = finishoutput(out, X, f, counteval, varargin)
+function out = finishoutput(out, X, f, counteval, countiter, varargin)
 %FINISHOUTPUT Finish output info
 if isempty(out.recordFEs)	
 	if ~isempty(varargin)
@@ -8,6 +8,7 @@ if isempty(out.recordFEs)
 	end
 	
 	out.fes = counteval;
+	out.G = countiter;
 	out.final.X = X;
 	out.final.f = f;
 	return;
@@ -20,7 +21,12 @@ if ~isempty(varargin)
 	for i = 1 : 2 : numel(varargin)
 		if isfield(out, varargin{i})
 			data = out.(varargin{i});
-			data(iRecordFEs:RecordPoint) = varargin{i + 1};
+			if length(varargin{i + 1}) == 1
+				data(iRecordFEs:RecordPoint) = varargin{i + 1};
+			else				
+				data(:, iRecordFEs:RecordPoint) = ...
+					repmat(varargin{i + 1}, 1, numel(iRecordFEs:RecordPoint));
+			end
 			out.(varargin{i}) = data;
 		else
 			out.(varargin{i}) = varargin{i + 1};
@@ -45,13 +51,14 @@ nRemaining = RecordPoint - iRecordFEs + 1;
 out.xmin(:, iRecordFEs:RecordPoint) = repmat(xmin, 1, nRemaining);
 out.xmean(:, iRecordFEs:RecordPoint) = repmat(mean(X, 2), 1, nRemaining);
 out.xstd(:, iRecordFEs:RecordPoint) = repmat(std(X, 0, 2), 1, nRemaining);
-out.fes(iRecordFEs:RecordPoint) = counteval;
+out.fes(iRecordFEs:RecordPoint) = out.recordFEs(iRecordFEs:RecordPoint);
 out.distancemin(iRecordFEs:RecordPoint) = min(distance);
 out.distancemax(iRecordFEs:RecordPoint) = max(distance);
 out.distancemean(iRecordFEs:RecordPoint) = mean(distance);
 out.distancemedian(iRecordFEs:RecordPoint) = median(distance);
 out.cond(iRecordFEs:RecordPoint) = condX;
 out.angle(iRecordFEs:RecordPoint) = angle;
+out.G(iRecordFEs:RecordPoint) = out.recordG(iRecordFEs:RecordPoint);
 out.final.X = X;
 out.final.f = f;
 end

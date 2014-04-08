@@ -15,12 +15,11 @@ defaultOptions.Q = 70;
 defaultOptions.Display = 'off';
 defaultOptions.RecordPoint = 100;
 defaultOptions.ftarget = -Inf;
-defaultOptions.TolFun = 0;
-defaultOptions.TolX = 0;
 defaultOptions.TolStagnationIteration = Inf;
+defaultOptions.initial.X = [];
+defaultOptions.initial.f = [];
 
 options = setdefoptions(options, defaultOptions);
-NP = options.NP;
 F = options.F;
 CR = options.CR;
 Q = options.Q;
@@ -31,12 +30,27 @@ TolStagnationIteration = options.TolStagnationIteration;
 
 D = numel(lb);
 
+if ~isempty(options.initial)
+	options.initial = setdefoptions(options.initial, defaultOptions.initial);
+	X = options.initial.X;
+	fx = options.initial.f;
+else
+	X = [];
+	fx = [];
+end
+
+if isempty(X)	
+	NP = options.NP;
+else
+	[~, NP] = size(X);
+end
+
 % Initialize variables
 counteval = 0;
 countiter = 1;
 countStagnation = 0;
 out = initoutput(RecordPoint, D, NP, maxfunevals, ...
-	'FC1Q', 'FCMEDIAN', 'FC3Q', 'FCMEAN', 'FCSTD');
+	'FC');
 
 % Initialize contour data
 if isDisplayIter
@@ -44,16 +58,20 @@ if isDisplayIter
 end
 
 % Initialize population
-X = zeros(D, NP);
-for i = 1 : NP
-	X(:, i) = lb + (ub - lb) .* rand(D, 1);
+if isempty(X)
+	X = zeros(D, NP);
+	for i = 1 : NP
+		X(:, i) = lb + (ub - lb) .* rand(D, 1);
+	end
 end
 
 % Evaluation
-fx = zeros(1, NP);
-for i = 1 : NP
-	fx(i) = feval(fitfun, X(:, i));
-	counteval = counteval + 1;
+if isempty(fx)
+	fx = zeros(1, NP);
+	for i = 1 : NP
+		fx(i) = feval(fitfun, X(:, i));
+		counteval = counteval + 1;
+	end
 end
 
 % Sort
@@ -77,12 +95,8 @@ if isDisplayIter
 end
 
 % Record
-out = updateoutput(out, X, fx, counteval, ...
-	'FC1Q', quantile(FC, 0.25), ...
-	'FCMEDIAN', median(FC), ...
-	'FC3Q', quantile(FC, 0.75), ...
-	'FCMEAN', mean(FC), ...
-	'FCSTD', std(FC));
+out = updateoutput(out, X, fx, counteval, countiter, ...
+	'FC', FC);
 
 % Iteration counter
 countiter = countiter + 1;
@@ -91,8 +105,7 @@ while true
 	% Termination conditions
 	outofmaxfunevals = counteval > maxfunevals - NP;
 	reachftarget = min(fx) <= ftarget;
-	stagnation = countStagnation >= TolStagnationIteration;
-	
+	stagnation = countStagnation >= TolStagnationIteration;	
 	if outofmaxfunevals || reachftarget || stagnation
 		break;
 	end
@@ -209,12 +222,8 @@ while true
 	FC = FC(fidx);
 	
 	% Record
-	out = updateoutput(out, X, fx, counteval, ...
-		'FC1Q', quantile(FC, 0.25), ...
-		'FCMEDIAN', median(FC), ...
-		'FC3Q', quantile(FC, 0.75), ...
-		'FCMEAN', mean(FC), ...
-		'FCSTD', std(FC));
+	out = updateoutput(out, X, fx, counteval, countiter, ...
+		'FC', FC);
 	
 	% Iteration counter
 	countiter = countiter + 1;
@@ -230,10 +239,6 @@ end
 [fmin, minindex] = min(fx);
 xmin = X(:, minindex);
 
-out = finishoutput(out, X, fx, counteval, ...
-	'FC1Q', quantile(FC, 0.25), ...
-	'FCMEDIAN', median(FC), ...
-	'FC3Q', quantile(FC, 0.75), ...
-	'FCMEAN', mean(FC), ...
-	'FCSTD', std(FC));
+out = finishoutput(out, X, fx, counteval, countiter, ...
+	'FC', zeros(NP, 1));
 end

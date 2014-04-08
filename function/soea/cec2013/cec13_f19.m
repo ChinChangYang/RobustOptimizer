@@ -3,8 +3,5 @@ function f = cec13_f19(x)
 % Expanded Griewank's plus Rosenbrock's Function
 x = reshape(x, numel(x), 1);
 f = cec13_func(x, 19) - 500;
-if f < 1e-8
-	f = 0;
-end
 end
 

@@ -9,8 +9,5 @@ function f = cec13_f27(x)
 % g5: Sphere Function f1
 x = reshape(x, numel(x), 1);
 f = cec13_func(x, 27) - 1300;
-if f < 1e-8
-	f = 0;
-end
 end
 

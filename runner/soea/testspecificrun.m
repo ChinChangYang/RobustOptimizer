@@ -2,7 +2,7 @@
 %function, maximal function evaluations.
 startTime = tic;
 close all;
-solver = 'detargettobest1bin_s';
+solver = 'shade_s';
 fitfun = 'cec13_f11';
 D = 30;
 maxfunevals = D * 1e4;
@@ -27,10 +27,10 @@ solverOptions.Q = 70;
 % solverOptions.TolX = 1e-8;
 % solverOptions.TolFun = 0;
 % solverOptions.TolStagnationIteration = 100;
-solverOptions.ftarget = -Inf;
+solverOptions.ftarget = 1e-8;
 solverOptions.Restart = 0;
 solverOptions.Display = 'off';
-solverOptions.RecordPoint = 1000;
+solverOptions.RecordPoint = 21;
 solverOptions.Noise = false;
 % lb = -5 * ones(D, 1);
 % ub = 5 * ones(D, 1);
@@ -213,18 +213,32 @@ end
 
 if isfield(out, 'MF')
 	figure;
-	plot(out.fes, out.MF);
-	title(sprintf('Solve %s by %s', fitfun, solver));
-	xlabel('FEs');
-	ylabel('MF');
+	if isvector(out.MF)
+		plot(out.fes, out.MF);
+		title(sprintf('Solve %s by %s', fitfun, solver));
+		xlabel('FEs');
+		ylabel('MF');
+	else
+		boxplot(out.MF, out.G, 'colors', 'k', 'plotstyle','compact');
+		title(sprintf('Solve %s by %s', fitfun, solver));
+		xlabel('Generation');
+		ylabel('MF');
+	end
 end
 
 if isfield(out, 'MCR')
 	figure;
-	plot(out.fes, out.MCR);
-	title(sprintf('Solve %s by %s', fitfun, solver));
-	xlabel('FEs');
-	ylabel('MCR');
+	if isvector(out.MCR)
+		plot(out.fes, out.MCR);
+		title(sprintf('Solve %s by %s', fitfun, solver));
+		xlabel('FEs');
+		ylabel('MCR');
+	else
+		boxplot(out.MCR, out.G, 'colors', 'k', 'plotstyle','compact');
+		title(sprintf('Solve %s by %s', fitfun, solver));
+		xlabel('Generation');
+		ylabel('MCR');
+	end
 end
 
 if isfield(out, 'MR')
@@ -274,11 +288,19 @@ end
 
 if isfield(out, 'FCMEAN')
 	figure;
-	hold on;
-	errorbar(out.FCMEAN, out.FCSTD);
-	axis([0, numel(out.FCMEAN), 0, max(out.FCMEAN) + 2 * max(out.FCSTD)]);
+	errorbar(out.fes, out.FCMEAN, out.FCSTD);
+	axis([0, out.fes(end), 0, max(out.FCMEAN) + 2 * max(out.FCSTD)]);
 	title(sprintf('Solve %s by %s', fitfun, solver));
 	xlabel('Function Evaluations');
+	ylabel('Recent Consecutive Unsuccessful Trial Vectors');
+% 	print(sprintf('%s.tiff', fitfun), '-dtiff');
+end
+
+if isfield(out, 'FC')
+	figure;
+	boxplot(out.FC, out.G, 'colors', 'k', 'plotstyle','compact');
+	title(sprintf('Solve %s by %s', fitfun, solver));
+	xlabel('Generation');
 	ylabel('Recent Consecutive Unsuccessful Trial Vectors');
 % 	print(sprintf('%s.tiff', fitfun), '-dtiff');
 end

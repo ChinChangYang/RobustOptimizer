@@ -4,10 +4,10 @@ end
 
 clear;
 close all;
-startTime = tic;
-solvers = {'debest1bin_s'};
+solvers = {'derand1bin_s'};
 
 for isolver = 1 : numel(solvers)
+	startTime = tic;
 	date = datestr(now, 'yyyymmddHHMM');
 	
 	solver = solvers{isolver};
@@ -22,8 +22,13 @@ for isolver = 1 : numel(solvers)
 		'cec13_f22', 'cec13_f23', 'cec13_f24', 'cec13_f25', ...
 		'cec13_f26', 'cec13_f27', 'cec13_f28'};
 	measureOptions.MaxFunEvalSet = measureOptions.Dimension * 1e4;
-	solverOptions.RecordPoint = 0;
-	solverOptions.ftarget = 0;
+	solverOptions.dimensionFactor = 5;
+	solverOptions.NP = solverOptions.dimensionFactor * measureOptions.Dimension;
+	solverOptions.F = 0.7;
+	solverOptions.CR = 0.5;
+	solverOptions.RecordPoint = 20;
+	solverOptions.ftarget = 1e-8;
+	solverOptions.TolStagnationIteration = inf;
 	[allerr, allfes] = err_fes_cec13(solver, measureOptions, solverOptions);
 	[nmaxfunevals, nfunctions, nruns] = size(allerr);
 	succ_perform = zeros(nmaxfunevals, nfunctions);

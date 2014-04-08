@@ -1,4 +1,4 @@
-function out = updateoutput(out, X, f, counteval, varargin)
+function out = updateoutput(out, X, f, counteval, countiter, varargin)
 %UPDATEOUTPUT Update output info
 if isempty(out.recordFEs)
 	return;
@@ -30,12 +30,17 @@ if counteval >= out.recordFEs(out.iRecordFEs)
 		out.distancemedian(i) = median(distance);
 		out.cond(i) = condX;
 		out.angle(i) = angle;
+		out.G(i) = countiter;
 		out.iRecordFEs = out.iRecordFEs + 1;
 		
 		if ~isempty(varargin)
 			for j = 1 : 2 : numel(varargin)
 				data = out.(varargin{j});
-				data(i) = varargin{j + 1};
+				if length(varargin{j + 1}) == 1
+					data(i) = varargin{j + 1};
+				else
+					data(:, i) = varargin{j + 1}(:);
+				end
 				out.(varargin{j}) = data;
 			end
 		end
