@@ -39,7 +39,7 @@ else
 	fx = [];
 end
 
-if isempty(X)	
+if isempty(X)
 	NP = options.NP;
 else
 	[~, NP] = size(X);
@@ -105,12 +105,12 @@ while true
 	% Termination conditions
 	outofmaxfunevals = counteval > maxfunevals - NP;
 	reachftarget = min(fx) <= ftarget;
-	stagnation = countStagnation >= TolStagnationIteration;	
+	stagnation = countStagnation >= TolStagnationIteration;
 	if outofmaxfunevals || reachftarget || stagnation
 		break;
 	end
 	
-	% Successful difference vectors
+	% SV-based framework
 	MINIMAL_NUM_INDICES = 4;
 	if sum(FC <= Q) >= MINIMAL_NUM_INDICES
 		GoodIndices = find(FC <= Q);
@@ -119,8 +119,8 @@ while true
 		GoodIndices = sortFCindices(1 : MINIMAL_NUM_INDICES);
 	end
 	
-	for i = 1 : NP		
-		if FC(i) <= Q			
+	for i = 1 : NP
+		if FC(i) <= Q
 			rt(i) = i;
 			
 			% Generate r1
@@ -164,7 +164,7 @@ while true
 	end
 	
 	% Mutation
-	for i = 1 : NP		
+	for i = 1 : NP
 		V(:, i) = X(:, r1(i)) + F .* (X(:, r2(i)) - X(:, r3(i)));
 	end
 	
@@ -205,7 +205,7 @@ while true
 	
 	% Selection
 	FailedIteration = true;
-	for i = 1 : NP		
+	for i = 1 : NP
 		if fu(i) < fx(i)
 			X(:, i)		= U(:, i);
 			fx(i)		= fu(i);
@@ -216,7 +216,7 @@ while true
 		end
 	end
 	
-	% Sort	
+	% Sort
 	[fx, fidx] = sort(fx);
 	X = X(:, fidx);
 	FC = FC(fidx);
@@ -233,7 +233,7 @@ while true
 		countStagnation = countStagnation + 1;
 	else
 		countStagnation = 0;
-	end	
+	end
 end
 
 [fmin, minindex] = min(fx);

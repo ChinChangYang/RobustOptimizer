@@ -1,26 +1,28 @@
-function [xmin, fmin, out] = derand1bin(fitfun, lb, ub, maxfunevals, options)
-% DERAND1BIN DE/RAND/1/BIN
-% DERAND1BIN(fitfun, lb, ub, maxfunevals) minimize the function fitfun in
+function [xmin, fmin, out] = degl_s(fitfun, lb, ub, maxfunevals, options)
+% DEGL_S DEGL Algorithm with SV-Based Framework
+% DEGL_S(fitfun, lb, ub, maxfunevals) minimize the function fitfun in
 % box constraints [lb, ub] with the maximal function evaluations
 % maxfunevals.
-% DERAND1BIN(..., options) minimize the function by solver options.
+% DEGL_S(..., options) minimize the function by solver options.
 if nargin <= 4
 	options = [];
 end
 
 defaultOptions.NP = 100;
-defaultOptions.F = 0.7;
 defaultOptions.CR = 0.5;
+defaultOptions.Q = 70;
+defaultOptions.NeighborhoodRatio = 0.1;
 defaultOptions.Display = 'off';
 defaultOptions.RecordPoint = 100;
 defaultOptions.ftarget = -Inf;
 defaultOptions.TolStagnationIteration = Inf;
 defaultOptions.initial.X = [];
 defaultOptions.initial.f = [];
+defaultOptions.initial.w = [];
 
 options = setdefoptions(options, defaultOptions);
-F = options.F;
 CR = options.CR;
+Q = options.Q;
 isDisplayIter = strcmp(options.Display, 'iter');
 RecordPoint = max(0, floor(options.RecordPoint));
 ftarget = options.ftarget;
@@ -32,9 +34,11 @@ if ~isempty(options.initial)
 	options.initial = setdefoptions(options.initial, defaultOptions.initial);
 	X = options.initial.X;
 	fx = options.initial.f;
+	w = options.initial.w;
 else
 	X = [];
 	fx = [];
+	w = [];
 end
 
 if isempty(X)	
@@ -63,6 +67,11 @@ if isempty(X)
 	end
 end
 
+% w
+if isempty(w)	
+	w = 0.05 + 0.9 * rand(1, NP);
+end
+
 % Evaluation
 if isempty(fx)
 	fx = zeros(1, NP);
@@ -75,8 +84,11 @@ end
 % Sort
 [fx, fidx] = sort(fx);
 X = X(:, fidx);
+w = w(fidx);
 
 % Initialize variables
+k = ceil(0.5 * (options.NeighborhoodRatio * NP));
+wc = w;
 V = X;
 U = X;
 fu = zeros(1, NP);
@@ -84,7 +96,6 @@ FC = zeros(1, NP);		% Consecutive Failure Counter
 rt = zeros(1, NP);
 r1 = zeros(1, NP);
 r2 = zeros(1, NP);
-r3 = zeros(1, NP);
 
 % Display
 if isDisplayIter
@@ -108,32 +119,105 @@ while true
 		break;
 	end
 	
-	% SV-based framework
+	% Successful difference vectors
+	MINIMAL_NUM_INDICES = 3;
+	if sum(FC <= Q) >= MINIMAL_NUM_INDICES
+		GoodIndices = find(FC <= Q);
+	else
+		[~, sortFCindices] = sort(FC);
+		GoodIndices = sortFCindices(1 : MINIMAL_NUM_INDICES);
+	end
+	
 	for i = 1 : NP
-		rt(i) = i;
-		
-		% Generate r1
-		r1(i) = floor(1 + NP * rand);
-		while rt(i) == r1(i)
+		if FC(i) <= Q
+			rt(i) = i;
+			
+			% Generate r1
 			r1(i) = floor(1 + NP * rand);
-		end
-		
-		% Generate r2
-		r2(i) = floor(1 + NP * rand);
-		while rt(i) == r2(i) || r1(i) == r2(i)
+			while rt(i) == r1(i)
+				r1(i) = floor(1 + NP * rand);
+			end
+			
+			% Generate r2
 			r2(i) = floor(1 + NP * rand);
-		end
-		
-		% Generate r3
-		r3(i) = floor(1 + NP * rand);
-		while rt(i) == r3(i) || r1(i) == r3(i) || r2(i) == r3(i)
-			r3(i) = floor(1 + NP * rand);
+			while rt(i) == r2(i) || r1(i) == r2(i)
+				r2(i) = floor(1 + NP * rand);
+			end
+		else
+			rt(i) = GoodIndices(floor(1 + numel(GoodIndices) * rand));
+			
+			% Generate r1
+			r1(i) = GoodIndices(floor(1 + numel(GoodIndices) * rand));
+			while rt(i) == r1(i)
+				r1(i) = GoodIndices(floor(1 + numel(GoodIndices) * rand));
+			end
+			
+			% Generate r2
+			r2(i) = GoodIndices(floor(1 + numel(GoodIndices) * rand));
+			while rt(i) == r2(i) || r1(i) == r2(i)
+				r2(i) = GoodIndices(floor(1 + numel(GoodIndices) * rand));
+			end
 		end
 	end
 	
 	% Mutation
-	for i = 1 : NP		
-		V(:, i) = X(:, r1(i)) + F .* (X(:, r2(i)) - X(:, r3(i)));
+	% Global best
+	g_best = 1;
+	
+	for i = 1 : NP
+		% Generate random mutant factor F, and parameters, alpha and beta.
+		F = abs(0.5 * log(rand));
+		alpha = F;
+		beta = F;
+		
+		% Neiborhoods index
+		n_index = (rt(i)-k) : (rt(i)+k);
+		lessthanone = n_index < 1;
+		n_index(lessthanone) = n_index(lessthanone) + NP;
+		greaterthanNP = n_index > NP;
+		n_index(greaterthanNP) = n_index(greaterthanNP) - NP;
+		
+		% Neiborhood solutions and fitness
+		Xn = X(:, n_index);
+		fn = fx(n_index);
+		
+		% Best neiborhood
+		[~, n_besti] = min(fn);
+		Xn_besti = Xn(:, n_besti);
+		
+		% Random neiborhood index
+		n_index(n_index == rt(i)) = [];
+		Xn = X(:, n_index);
+		p = ceil(rand * numel(n_index));
+		q = ceil(rand * numel(n_index));
+		
+		while p == q
+			q = ceil(rand * numel(n_index));
+		end
+		
+		% Random neiborhood solutions
+		Xp = Xn(:, p);
+		Xq = Xn(:, q);
+		
+		% Local donor vector
+		Li = X(:, rt(i)) + alpha * (Xn_besti - X(:, rt(i))) + ...
+			beta * (Xp - Xq);
+		
+		% Global donor vector		
+		gi = X(:, rt(i)) + alpha * (X(:, g_best) - X(:, rt(i))) + ...
+			beta * (X(:, r1(i)) - X(:, r2(i)));
+		
+		% Self-adaptive weight factor
+		wc(i) = w(rt(i)) + F * (w(g_best) - w(rt(i))) + ...
+			F * (w(r1(i)) - w(r2(i)));
+		
+		if wc(i) < 0.05
+			wc(i) = 0.05;
+		elseif wc(i) > 0.95
+			wc(i) = 0.95;
+		end
+		
+		V(:, i) = wc(i) * gi + (1 - wc(i)) * Li;
 	end
 	
 	for i = 1 : NP
@@ -177,6 +261,7 @@ while true
 		if fu(i) < fx(i)
 			X(:, i)		= U(:, i);
 			fx(i)		= fu(i);
+			w(i)		= wc(i);
 			FailedIteration = false;
 			FC(i)		= 0;
 		else
@@ -184,9 +269,10 @@ while true
 		end
 	end
 	
-	% Sort	
+	% Sort		
 	[fx, fidx] = sort(fx);
 	X = X(:, fidx);
+	w = w(fidx);
 	FC = FC(fidx);
 	
 	% Record

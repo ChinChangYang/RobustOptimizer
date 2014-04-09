@@ -1,9 +1,10 @@
-function [xmin, fmin, out] = derand1bin(fitfun, lb, ub, maxfunevals, options)
-% DERAND1BIN DE/RAND/1/BIN
-% DERAND1BIN(fitfun, lb, ub, maxfunevals) minimize the function fitfun in
+function [xmin, fmin, out] = rbde_s(fitfun, lb, ub, maxfunevals, options)
+% RBDE_S Differential evolution with rank-based mutation and SV-Based
+% Framework 
+% RBDE_S(fitfun, lb, ub, maxfunevals) minimize the function fitfun in
 % box constraints [lb, ub] with the maximal function evaluations
 % maxfunevals.
-% DERAND1BIN(..., options) minimize the function by solver options.
+% RBDE_S(..., options) minimize the function by solver options.
 if nargin <= 4
 	options = [];
 end
@@ -11,6 +12,8 @@ end
 defaultOptions.NP = 100;
 defaultOptions.F = 0.7;
 defaultOptions.CR = 0.5;
+defaultOptions.Q = 70;
+defaultOptions.beta = 3.0;
 defaultOptions.Display = 'off';
 defaultOptions.RecordPoint = 100;
 defaultOptions.ftarget = -Inf;
@@ -21,8 +24,10 @@ defaultOptions.initial.f = [];
 options = setdefoptions(options, defaultOptions);
 F = options.F;
 CR = options.CR;
+beta = options.beta;
+Q = options.Q;
 isDisplayIter = strcmp(options.Display, 'iter');
-RecordPoint = max(0, floor(options.RecordPoint));
+RecordPoint = max(1, floor(options.RecordPoint));
 ftarget = options.ftarget;
 TolStagnationIteration = options.TolStagnationIteration;
 
@@ -109,31 +114,61 @@ while true
 	end
 	
 	% SV-based framework
+	MINIMAL_NUM_INDICES = 4;
+	if sum(FC <= Q) >= MINIMAL_NUM_INDICES
+		GoodIndices = find(FC <= Q);
+	else
+		[~, sortFCindices] = sort(FC);
+		GoodIndices = sortFCindices(1 : MINIMAL_NUM_INDICES);
+	end
+	
 	for i = 1 : NP
-		rt(i) = i;
-		
-		% Generate r1
-		r1(i) = floor(1 + NP * rand);
-		while rt(i) == r1(i)
-			r1(i) = floor(1 + NP * rand);
-		end
-		
-		% Generate r2
-		r2(i) = floor(1 + NP * rand);
-		while rt(i) == r2(i) || r1(i) == r2(i)
-			r2(i) = floor(1 + NP * rand);
-		end
-		
-		% Generate r3
-		r3(i) = floor(1 + NP * rand);
-		while rt(i) == r3(i) || r1(i) == r3(i) || r2(i) == r3(i)
-			r3(i) = floor(1 + NP * rand);
+		if FC(i) <= Q
+			rt(i) = i;
+			
+			% Generate r1
+			r1(i) = floor(1 + NP/2/(beta-1)*(beta-sqrt(beta^2-4*(beta-1)*rand)));
+			while rt(i) == r1(i)
+				r1(i) = floor(1 + NP/2/(beta-1)*(beta-sqrt(beta^2-4*(beta-1)*rand)));
+			end
+			
+			% Generate r2
+			r2(i) = floor(1 + NP/2/(beta-1)*(beta-sqrt(beta^2-4*(beta-1)*rand)));
+			while rt(i) == r2(i) || r1(i) == r2(i)
+				r2(i) = floor(1 + NP/2/(beta-1)*(beta-sqrt(beta^2-4*(beta-1)*rand)));
+			end
+			
+			% Generate r3
+			r3(i) = floor(1 + NP/2/(beta-1)*(beta-sqrt(beta^2-4*(beta-1)*rand)));
+			while rt(i) == r3(i) || r1(i) == r3(i) || r2(i) == r3(i)
+				r3(i) = floor(1 + NP/2/(beta-1)*(beta-sqrt(beta^2-4*(beta-1)*rand)));
+			end
+		else
+			rt(i) = GoodIndices(floor(1 + numel(GoodIndices)/2/(beta-1)*(beta-sqrt(beta^2-4*(beta-1)*rand))));
+			
+			% Generate r1
+			r1(i) = GoodIndices(floor(1 + numel(GoodIndices)/2/(beta-1)*(beta-sqrt(beta^2-4*(beta-1)*rand))));
+			while rt(i) == r1(i)
+				r1(i) = GoodIndices(floor(1 + numel(GoodIndices)/2/(beta-1)*(beta-sqrt(beta^2-4*(beta-1)*rand))));
+			end
+			
+			% Generate r2
+			r2(i) = GoodIndices(floor(1 + numel(GoodIndices)/2/(beta-1)*(beta-sqrt(beta^2-4*(beta-1)*rand))));
+			while rt(i) == r2(i) || r1(i) == r2(i)
+				r2(i) = GoodIndices(floor(1 + numel(GoodIndices)/2/(beta-1)*(beta-sqrt(beta^2-4*(beta-1)*rand))));
+			end
+			
+			% Generate r3
+			r3(i) = GoodIndices(floor(1 + numel(GoodIndices)/2/(beta-1)*(beta-sqrt(beta^2-4*(beta-1)*rand))));
+			while rt(i) == r3(i) || r1(i) == r3(i) || r2(i) == r3(i)
+				r3(i) = GoodIndices(floor(1 + numel(GoodIndices)/2/(beta-1)*(beta-sqrt(beta^2-4*(beta-1)*rand))));
+			end
 		end
 	end
 	
 	% Mutation
 	for i = 1 : NP		
-		V(:, i) = X(:, r1(i)) + F .* (X(:, r2(i)) - X(:, r3(i)));
+		V(:, i) = X(:, r1(i)) + F * (X(:, r2(i)) - X(:, r3(i)));
 	end
 	
 	for i = 1 : NP
@@ -184,7 +219,7 @@ while true
 		end
 	end
 	
-	% Sort	
+	% Sort
 	[fx, fidx] = sort(fx);
 	X = X(:, fidx);
 	FC = FC(fidx);

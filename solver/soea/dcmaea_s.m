@@ -1,16 +1,17 @@
-function [xmin, fmin, out] = dcmaeabin(fitfun, lb, ub, maxfunevals, options)
-% DCMAEABIN Differential covariance matrix adaptation evolutionary
+function [xmin, fmin, out] = dcmaea_s(fitfun, lb, ub, maxfunevals, options)
+% DCMAEA_S DCMA-EA with SV-Based Framework
 % algorithm
-% DCMAEABIN(fitfun, lb, ub, maxfunevals) minimize the function fitfun in
+% DCMAEA_S(fitfun, lb, ub, maxfunevals) minimize the function fitfun in
 % box constraints [lb, ub] with the maximal function evaluations
 % maxfunevals.
-% DCMAEABIN(..., options) minimize the function by solver options.
+% DCMAEA_S(..., options) minimize the function by solver options.
 if nargin <= 4
 	options = [];
 end
 
 defaultOptions.NP = 100;
 defaultOptions.CR = 0.5;
+defaultOptions.Q = 70;
 defaultOptions.Display = 'off';
 defaultOptions.RecordPoint = 100;
 defaultOptions.ftarget = -Inf;
@@ -20,6 +21,7 @@ defaultOptions.initial.f = [];
 
 options = setdefoptions(options, defaultOptions);
 mu_CR = options.CR;
+Q = options.Q;
 isDisplayIter = strcmp(options.Display, 'iter');
 RecordPoint = max(0, floor(options.RecordPoint));
 ftarget = options.ftarget;
@@ -171,19 +173,43 @@ while true
 	CR(CR < 0) = 0;
 	
 	% SV-based framework
+	MINIMAL_NUM_INDICES = 3;
+	if sum(FC <= Q) >= MINIMAL_NUM_INDICES
+		GoodIndices = find(FC <= Q);
+	else
+		[~, sortFCindices] = sort(FC);
+		GoodIndices = sortFCindices(1 : MINIMAL_NUM_INDICES);
+	end
+	
 	for i = 1 : NP
-		rt(i) = i;
-		
-		% Generate r1
-		r1(i) = floor(1 + NP * rand);
-		while rt(i) == r1(i)
+		if FC(i) <= Q
+			rt(i) = i;
+			
+			% Generate r1
 			r1(i) = floor(1 + NP * rand);
-		end
-		
-		% Generate r2
-		r2(i) = floor(1 + NP * rand);
-		while rt(i) == r1(i) || r1(i) == r2(i)
+			while rt(i) == r1(i)
+				r1(i) = floor(1 + NP * rand);
+			end
+			
+			% Generate r2
 			r2(i) = floor(1 + NP * rand);
+			while rt(i) == r1(i) || r1(i) == r2(i)
+				r2(i) = floor(1 + NP * rand);
+			end
+		else
+			rt(i) = GoodIndices(floor(1 + numel(GoodIndices) * rand));
+			
+			% Generate r1
+			r1(i) = GoodIndices(floor(1 + numel(GoodIndices) * rand));
+			while rt(i) == r1(i)
+				r1(i) = GoodIndices(floor(1 + numel(GoodIndices) * rand));
+			end
+			
+			% Generate r2
+			r2(i) = GoodIndices(floor(1 + numel(GoodIndices) * rand));
+			while rt(i) == r2(i) || r1(i) == r2(i)
+				r2(i) = GoodIndices(floor(1 + numel(GoodIndices) * rand));
+			end
 		end
 	end
 	

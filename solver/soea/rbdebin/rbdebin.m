@@ -8,35 +8,39 @@ if nargin <= 4
 	options = [];
 end
 
-defaultOptions.dimensionFactor = 5;
-defaultOptions.maxfunevalsFactor =  0;
-defaultOptions.CR = 0.5;
+defaultOptions.NP = 100;
 defaultOptions.F = 0.7;
+defaultOptions.CR = 0.5;
 defaultOptions.beta = 3.0;
 defaultOptions.Display = 'off';
 defaultOptions.RecordPoint = 100;
 defaultOptions.ftarget = -Inf;
-defaultOptions.TolFun = eps;
-defaultOptions.TolX = 100 * eps;
+defaultOptions.TolStagnationIteration = Inf;
 defaultOptions.initial.X = [];
 defaultOptions.initial.f = [];
 
 options = setdefoptions(options, defaultOptions);
-dimensionFactor = options.dimensionFactor;
-CR = options.CR;
 F = options.F;
+CR = options.CR;
 beta = options.beta;
 isDisplayIter = strcmp(options.Display, 'iter');
 RecordPoint = max(1, floor(options.RecordPoint));
 ftarget = options.ftarget;
-TolFun = options.TolFun;
-TolX = options.TolX;
-D = numel(lb);
-X = options.initial.X;
-f = options.initial.f;
+TolStagnationIteration = options.TolStagnationIteration;
 
-if isempty(X)
-	NP = ceil(dimensionFactor * D);
+D = numel(lb);
+
+if ~isempty(options.initial)
+	options.initial = setdefoptions(options.initial, defaultOptions.initial);
+	X = options.initial.X;
+	fx = options.initial.f;
+else
+	X = [];
+	fx = [];
+end
+
+if isempty(X)	
+	NP = options.NP;
 else
 	[~, NP] = size(X);
 end
@@ -44,92 +48,94 @@ end
 % Initialize variables
 counteval = 0;
 countiter = 1;
-out = initoutput(RecordPoint, D, NP, maxfunevals);
+countStagnation = 0;
+out = initoutput(RecordPoint, D, NP, maxfunevals, ...
+	'FC');
 
 % Initialize contour data
 if isDisplayIter
-	[XX, YY, ZZ] = preparecontourdata(D, lb, ub, fitfun);
+	[XX, YY, ZZ] = advcontourdata(D, lb, ub, fitfun);
 end
 
 % Initialize population
 if isempty(X)
-	if NP < 1e1
-		LHS = lhsdesign(NP, D, 'iteration', 10)';
-	elseif NP < 1e2
-		LHS = lhsdesign(NP, D, 'iteration', 2)';
-	else
-		LHS = rand(D, NP);
-	end
-	
 	X = zeros(D, NP);
 	for i = 1 : NP
-		X(:, i) = lb + (ub - lb) .* LHS(:, i);
+		X(:, i) = lb + (ub - lb) .* rand(D, 1);
 	end
 end
 
 % Evaluation
-if isempty(f)
-	f = zeros(1, NP);
+if isempty(fx)
+	fx = zeros(1, NP);
 	for i = 1 : NP
-		f(i) = feval(fitfun, X(:, i));
+		fx(i) = feval(fitfun, X(:, i));
 		counteval = counteval + 1;
 	end
 end
 
 % Sort
-[f, findex] = sort(f);
-X = X(:, findex);
+[fx, fidx] = sort(fx);
+X = X(:, fidx);
 
 % Initialize variables
 V = X;
 U = X;
+fu = zeros(1, NP);
+FC = zeros(1, NP);		% Consecutive Failure Counter
+rt = zeros(1, NP);
+r1 = zeros(1, NP);
+r2 = zeros(1, NP);
+r3 = zeros(1, NP);
 
 % Display
 if isDisplayIter
-	displayitermessages(X, U, f, countiter, XX, YY, ZZ);
+	displayitermessages(...
+		X, U, fx, countiter, XX, YY, ZZ);
 end
 
 % Record
-out = updateoutput(out, X, f, counteval);
+out = updateoutput(out, X, fx, counteval, countiter, ...
+	'FC', FC);
 
 % Iteration counter
 countiter = countiter + 1;
 
 while true
 	% Termination conditions
-	stdf = std(f);
-	stdX = std(X, 0, 2);
-	meanX = mean(X, 2);
 	outofmaxfunevals = counteval > maxfunevals - NP;
-	reachftarget = min(f) <= ftarget;
-	fitnessconvergence = stdf <= mean(abs(f)) * 100 * eps || stdf <= realmin || stdf <= TolFun;
-	solutionconvergence = all(stdX <= meanX * 100 * eps) || all(stdX <= 100 * realmin) || ...
-		all(stdX <= TolX);
-	
-	% Convergence conditions
-	if outofmaxfunevals || reachftarget || fitnessconvergence || solutionconvergence
+	reachftarget = min(fx) <= ftarget;
+	stagnation = countStagnation >= TolStagnationIteration;	
+	if outofmaxfunevals || reachftarget || stagnation
 		break;
 	end
 	
-	% Mutation
+	% SV-based framework
 	for i = 1 : NP
-		r1 = 1 + floor(NP/2/(beta-1)*(beta-sqrt(beta^2-4*(beta-1)*rand)));
-		r2 = 1 + floor(NP/2/(beta-1)*(beta-sqrt(beta^2-4*(beta-1)*rand)));
-		r3 = 1 + floor(NP/2/(beta-1)*(beta-sqrt(beta^2-4*(beta-1)*rand)));
+		rt(i) = i;
 		
-		while r1 == i
-			r1 = 1 + floor(NP/2/(beta-1)*(beta-sqrt(beta^2-4*(beta-1)*rand)));
+		% Generate r1
+		r1(i) = floor(1 + NP/2/(beta-1)*(beta-sqrt(beta^2-4*(beta-1)*rand)));
+		while rt(i) == r1(i)
+			r1(i) = floor(1 + NP/2/(beta-1)*(beta-sqrt(beta^2-4*(beta-1)*rand)));
 		end
 		
-		while r2 == i || r2 == r1
-			r2 = 1 + floor(NP/2/(beta-1)*(beta-sqrt(beta^2-4*(beta-1)*rand)));
+		% Generate r2
+		r2(i) = floor(1 + NP/2/(beta-1)*(beta-sqrt(beta^2-4*(beta-1)*rand)));
+		while rt(i) == r2(i) || r1(i) == r2(i)
+			r2(i) = floor(1 + NP/2/(beta-1)*(beta-sqrt(beta^2-4*(beta-1)*rand)));
 		end
 		
-		while r3 == i || r3 == r1 || r3 == r2
-			r3 = 1 + floor(NP/2/(beta-1)*(beta-sqrt(beta^2-4*(beta-1)*rand)));
+		% Generate r3
+		r3(i) = floor(1 + NP/2/(beta-1)*(beta-sqrt(beta^2-4*(beta-1)*rand)));
+		while rt(i) == r3(i) || r1(i) == r3(i) || r2(i) == r3(i)
+			r3(i) = floor(1 + NP/2/(beta-1)*(beta-sqrt(beta^2-4*(beta-1)*rand)));
 		end
-		
-		V(:, i) = X(:, r1) + (F + 0.05 * randn) * (X(:, r2) - X(:, r3));
+	end
+	
+	% Mutation
+	for i = 1 : NP		
+		V(:, i) = X(:, r1(i)) + F * (X(:, r2(i)) - X(:, r3(i)));
 	end
 	
 	for i = 1 : NP
@@ -139,56 +145,70 @@ while true
 			if rand < CR || j == jrand
 				U(j, i) = V(j, i);
 			else
-				U(j, i) = X(j, i);
+				U(j, i) = X(j, rt(i));
 			end
 		end
 	end
 	
-	% Repair
+	% Correction for outside of boundaries
 	for i = 1 : NP
 		for j = 1 : D
 			if U(j, i) < lb(j)
-				U(j, i) = X(j, i) + rand * (lb(j) - X(j, i));
+				U(j, i) = 0.5 * (lb(j) + X(j, rt(i)));
 			elseif U(j, i) > ub(j)
-				U(j, i) = X(j, i) + rand * (ub(j) - X(j, i));
+				U(j, i) = 0.5 * (ub(j) + X(j, rt(i)));
 			end
 		end
 	end
 	
 	% Display
 	if isDisplayIter
-		displayitermessages(X, U, f, countiter, XX, YY, ZZ);
+		displayitermessages(...
+			X, U, fx, countiter, XX, YY, ZZ);
+	end
+	
+	% Evaluation
+	for i = 1 : NP
+		fu(i) = feval(fitfun, U(:, i));
+		counteval = counteval + 1;
 	end
 	
 	% Selection
-	counteval = counteval + NP;
-	for i = 1 : NP
-		fui = feval(fitfun, U(:, i));
-		
-		if fui < f(i)
-			f(i) = fui;
-			X(:, i) = U(:, i);
+	FailedIteration = true;
+	for i = 1 : NP		
+		if fu(i) < fx(i)
+			X(:, i)		= U(:, i);
+			fx(i)		= fu(i);
+			FailedIteration = false;
+			FC(i)		= 0;
+		else
+			FC(i) = FC(i) + 1;
 		end
 	end
 	
 	% Sort
-	[f, findex] = sort(f);
-	X = X(:, findex);
+	[fx, fidx] = sort(fx);
+	X = X(:, fidx);
+	FC = FC(fidx);
 	
 	% Record
-	out = updateoutput(out, X, f, counteval);
+	out = updateoutput(out, X, fx, counteval, countiter, ...
+		'FC', FC);
 	
 	% Iteration counter
 	countiter = countiter + 1;
+	
+	% Stagnation iteration
+	if FailedIteration
+		countStagnation = countStagnation + 1;
+	else
+		countStagnation = 0;
+	end	
 end
 
-[fmin, fminidx] = min(f);
-xmin = X(:, fminidx);
+[fmin, minindex] = min(fx);
+xmin = X(:, minindex);
 
-if fmin < out.bestever.fmin
-	out.bestever.fmin = fmin;
-	out.bestever.xmin = xmin;
-end
-
-out = finishoutput(out, X, f, counteval);
+out = finishoutput(out, X, fx, counteval, countiter, ...
+	'FC', zeros(NP, 1));
 end

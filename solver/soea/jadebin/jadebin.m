@@ -172,6 +172,7 @@ while true
 	
 	XA = [X, A];
 	
+	% SV-based framework
 	for i = 1 : NP
 		rt(i) = i;
 		
