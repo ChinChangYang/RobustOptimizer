@@ -10,7 +10,4 @@ function f = cec14_f25(x)
 % g3: Rotated High Conditioned Elliptic Function F1¡¦
 x = reshape(x, numel(x), 1);
 f = cec14_func(x, 25) - 2500;
-if f < 1e-8
-	f = 0;
-end
 end

@@ -1,9 +1,9 @@
-function [xmin, fmin, out] = jadebin(fitfun, lb, ub, maxfunevals, options)
-% JADEBIN JADE algorithm
-% JADEBIN(fitfun, lb, ub, maxfunevals) minimize the function fitfun in
+function [xmin, fmin, out] = jade_s(fitfun, lb, ub, maxfunevals, options)
+% JADE_S JADE algorithm with SV-Based Framework
+% JADE_S(fitfun, lb, ub, maxfunevals) minimize the function fitfun in
 % box constraints [lb, ub] with the maximal function evaluations
 % maxfunevals.
-% JADEBIN(..., options) minimize the function by solver options.
+% JADE_S(..., options) minimize the function by solver options.
 if nargin <= 4
 	options = [];
 end
@@ -11,6 +11,7 @@ end
 defaultOptions.NP = 100;
 defaultOptions.F = 0.7;
 defaultOptions.CR = 0.5;
+defaultOptions.Q = 70;
 defaultOptions.delta_CR = 0.1;
 defaultOptions.delta_F = 0.1;
 defaultOptions.p = 0.05;
@@ -26,6 +27,7 @@ defaultOptions.initial.mu_CR = [];
 defaultOptions.initial.mu_F = [];
 
 options = setdefoptions(options, defaultOptions);
+Q = options.Q;
 delta_CR = options.delta_CR;
 delta_F = options.delta_F;
 p = options.p;
@@ -172,19 +174,44 @@ while true
 	
 	XA = [X, A];
 	
+	% Successful difference vectors
+	MINIMAL_NUM_INDICES = 3;
+	if sum(FC <= Q) >= MINIMAL_NUM_INDICES
+		GoodIndices = find(FC <= Q);
+	else
+		[~, sortFCindices] = sort(FC);
+		GoodIndices = sortFCindices(1 : MINIMAL_NUM_INDICES);
+	end
+	
 	for i = 1 : NP
-		rt(i) = i;
-		
-		% Generate r1
-		r1(i) = floor(1 + NP * rand);
-		while rt(i) == r1(i)
+		if FC(i) <= Q
+			rt(i) = i;
+			
+			% Generate r1
 			r1(i) = floor(1 + NP * rand);
-		end
-		
-		% Generate r2
-		r2(i) = floor(1 + (NP + A_size) * rand);
-		while rt(i) == r1(i) || r1(i) == r2(i)
+			while rt(i) == r1(i)
+				r1(i) = floor(1 + NP * rand);
+			end
+			
+			% Generate r2
 			r2(i) = floor(1 + (NP + A_size) * rand);
+			while rt(i) == r1(i) || r1(i) == r2(i)
+				r2(i) = floor(1 + (NP + A_size) * rand);
+			end
+		else
+			rt(i) = GoodIndices(floor(1 + numel(GoodIndices) * rand));
+			
+			% Generate r1
+			r1(i) = GoodIndices(floor(1 + numel(GoodIndices) * rand));
+			while rt(i) == r1(i)
+				r1(i) = GoodIndices(floor(1 + numel(GoodIndices) * rand));
+			end
+			
+			% Generate r2
+			r2(i) = GoodIndices(floor(1 + numel(GoodIndices) * rand));
+			while rt(i) == r2(i) || r1(i) == r2(i)
+				r2(i) = GoodIndices(floor(1 + numel(GoodIndices) * rand));
+			end
 		end
 	end
 	

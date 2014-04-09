@@ -10,7 +10,4 @@ function f = cec14_f21(x)
 % g5: High Conditioned Elliptic Function f1
 x = reshape(x, numel(x), 1);
 f = cec14_func(x, 21) - 2100;
-if f < 1e-8
-	f = 0;
-end
 end

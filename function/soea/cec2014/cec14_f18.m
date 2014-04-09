@@ -8,7 +8,4 @@ function f = cec14_f18(x)
 % g3: Rastrigin¡¦s Function f8
 x = reshape(x, numel(x), 1);
 f = cec14_func(x, 18) - 1800;
-if f < 1e-8
-	f = 0;
-end
 end

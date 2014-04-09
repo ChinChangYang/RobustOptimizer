@@ -10,7 +10,4 @@ function f = cec14_f24(x)
 % g3: Rotated HGBat Function F14¡¦
 x = reshape(x, numel(x), 1);
 f = cec14_func(x, 24) - 2400;
-if f < 1e-8
-	f = 0;
-end
 end

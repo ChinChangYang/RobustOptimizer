@@ -9,7 +9,4 @@ function f = cec14_f20(x)
 % g4: Rastrigin¡¦s Function f8
 x = reshape(x, numel(x), 1);
 f = cec14_func(x, 20) - 2000;
-if f < 1e-8
-	f = 0;
-end
 end

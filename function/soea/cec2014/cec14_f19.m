@@ -9,7 +9,4 @@ function f = cec14_f19(x)
 % g4: Scaffer¡¦s F6 Function:f14
 x = reshape(x, numel(x), 1);
 f = cec14_func(x, 19) - 1900;
-if f < 1e-8
-	f = 0;
-end
 end

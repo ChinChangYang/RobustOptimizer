@@ -11,7 +11,4 @@ function f = cec14_f23(x)
 % g5: High Conditioned Elliptic Function F1¡¦
 x = reshape(x, numel(x), 1);
 f = cec14_func(x, 23) - 2300;
-if f < 1e-8
-	f = 0;
-end
 end

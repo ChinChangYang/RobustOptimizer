@@ -10,7 +10,4 @@ function f = cec14_f30(x)
 % g3: Hybrid Function 6 F22¡¦
 x = reshape(x, numel(x), 1);
 f = cec14_func(x, 30) - 3000;
-if f < 1e-8
-	f = 0;
-end
 end

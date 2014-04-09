@@ -3,7 +3,4 @@ function f = cec14_f13(x)
 % Shifted and Rotated HappyCat Function
 x = reshape(x, numel(x), 1);
 f = cec14_func(x, 13) - 1300;
-if f < 1e-8
-	f = 0;
-end
 end

@@ -3,7 +3,4 @@ function f = cec14_f2(x)
 % Rotated Bent Cigar Function
 x = reshape(x, numel(x), 1);
 f = cec14_func(x, 2) - 200;
-if f < 1e-8
-	f = 0;
-end
 end
