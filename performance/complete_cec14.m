@@ -1,8 +1,8 @@
-function [allout, allfvals, allfes, T0, T1, T2] = complete_cec13(...
+function [allout, allfvals, allfes, T0, T1, T2] = complete_cec14(...
 	solver, ...
 	measureOptions, ...
 	solverOptions)
-% COMPLETE_CEC13 complete CEC'13 experiments
+% COMPLETE_CEC13 complete CEC'14 experiments
 
 % Deal with input arguments
 if nargin <= 0
@@ -20,13 +20,14 @@ end
 defaultMeasureOptions.Dimension = 30;
 defaultMeasureOptions.Runs = 51;
 defaultMeasureOptions.FitnessFunctions = ...
-	{'cec13_f1', 'cec13_f2', 'cec13_f3', 'cec13_f4', ...
-	'cec13_f5', 'cec13_f6', 'cec13_f7', 'cec13_f8', 'cec13_f9', ...
-	'cec13_f10', 'cec13_f11', 'cec13_f12', 'cec13_f13', ...
-	'cec13_f14', 'cec13_f15', 'cec13_f16', 'cec13_f17', ...
-	'cec13_f18', 'cec13_f19', 'cec13_f20', 'cec13_f21', ...
-	'cec13_f22', 'cec13_f23', 'cec13_f24', 'cec13_f25', ...
-	'cec13_f26', 'cec13_f27', 'cec13_f28'};
+	{'cec14_f1', 'cec14_f2', 'cec14_f3', 'cec14_f4', ...
+	'cec14_f5', 'cec14_f6', 'cec14_f7', 'cec14_f8', 'cec14_f9', ...
+	'cec14_f10', 'cec14_f11', 'cec14_f12', 'cec14_f13', ...
+	'cec14_f14', 'cec14_f15', 'cec14_f16', 'cec14_f17', ...
+	'cec14_f18', 'cec14_f19', 'cec14_f20', 'cec14_f21', ...
+	'cec14_f22', 'cec14_f23', 'cec14_f24', 'cec14_f25', ...
+	'cec14_f26', 'cec14_f27', 'cec14_f28', 'cec14_f29', ...
+	'cec14_f30'};
 defaultMeasureOptions.MaxFunEvals = 3e5;
 defaultMeasureOptions.LowerBounds = -100;
 defaultMeasureOptions.UpperBounds = 100;
@@ -75,40 +76,43 @@ for ifitfun = 1 : length(fitfuns)
 	end
 end
 
-% Computational complexity
-fprintf('Computing T0.....');
-startT0 = tic;
-for i = 1 : 1000000
-	x = 0.55 + double(i);
-	x = x + x;
-	x = x ./ 2;
-	x = x * x;
-	x = sqrt(x);
-	x = log(x);
-	x = exp(x);
-	y = x/x;
-end
-T0 = toc(startT0) + y - y;
-fprintf('Done\n');
-fprintf('Computing T1.....');
-startT1 = tic;
-for i = 1 : 200000
-	feval('cec13_f14', rand(D, 1));
-end
-T1 = toc(startT1);
-fprintf('Done\n');
-fprintf('Computing T2');
-allT2 = zeros(5, 1);
-solverOptions.ftarget = -inf;
-solverOptions.TolX = -inf;
-solverOptions.TolStagnationIteration = inf;
-solverOptions.RecordPoint = 0;
-for i = 1 : 5
-	fprintf('.');
-	startT2 = tic;
-	feval(solver, 'cec13_f14', lb, ub, 200000, solverOptions);
-	allT2(i) = toc(startT2);
-end
-T2 = mean(allT2);
-fprintf('Done\n');
+% % Computational complexity
+T0 = nan;
+T1 = nan;
+T2 = nan;
+% fprintf('Computing T0.....');
+% startT0 = tic;
+% for i = 1 : 1000000
+% 	x = 0.55 + double(i);
+% 	x = x + x;
+% 	x = x ./ 2;
+% 	x = x * x;
+% 	x = sqrt(x);
+% 	x = log(x);
+% 	x = exp(x);
+% 	y = x/x;
+% end
+% T0 = toc(startT0) + y - y;
+% fprintf('Done\n');
+% fprintf('Computing T1.....');
+% startT1 = tic;
+% for i = 1 : 200000
+% 	feval('cec14_f18', rand(D, 1));
+% end
+% T1 = toc(startT1);
+% fprintf('Done\n');
+% fprintf('Computing T2');
+% allT2 = zeros(5, 1);
+% solverOptions.ftarget = -inf;
+% solverOptions.TolX = -inf;
+% solverOptions.TolStagnationIteration = inf;
+% solverOptions.RecordPoint = 0;
+% for i = 1 : 5
+% 	fprintf('.');
+% 	startT2 = tic;
+% 	feval(solver, 'cec14_f18', lb, ub, 200000, solverOptions);
+% 	allT2(i) = toc(startT2);
+% end
+% T2 = mean(allT2);
+% fprintf('Done\n');
 end

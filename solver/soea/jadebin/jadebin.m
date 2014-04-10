@@ -118,7 +118,7 @@ FC = zeros(1, NP);		% Consecutive Failure Counter
 rt = zeros(1, NP);
 r1 = zeros(1, NP);
 r2 = zeros(1, NP);
-Chy = cauchyrnd(0, delta_F, NP);
+Chy = cauchyrnd(0, delta_F, NP + 10);
 iChy = 1;
 
 % Display

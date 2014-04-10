@@ -144,24 +144,24 @@ while true
 				r3(i) = floor(1 + NP/2/(beta-1)*(beta-sqrt(beta^2-4*(beta-1)*rand)));
 			end
 		else
-			rt(i) = GoodIndices(floor(1 + numel(GoodIndices)/2/(beta-1)*(beta-sqrt(beta^2-4*(beta-1)*rand))));
+			rt(i) = GoodIndices(floor(1 + numel(GoodIndices) * rand));
 			
 			% Generate r1
-			r1(i) = GoodIndices(floor(1 + numel(GoodIndices)/2/(beta-1)*(beta-sqrt(beta^2-4*(beta-1)*rand))));
+			r1(i) = GoodIndices(floor(1 + numel(GoodIndices) * rand));
 			while rt(i) == r1(i)
-				r1(i) = GoodIndices(floor(1 + numel(GoodIndices)/2/(beta-1)*(beta-sqrt(beta^2-4*(beta-1)*rand))));
+				r1(i) = GoodIndices(floor(1 + numel(GoodIndices) * rand));
 			end
 			
 			% Generate r2
-			r2(i) = GoodIndices(floor(1 + numel(GoodIndices)/2/(beta-1)*(beta-sqrt(beta^2-4*(beta-1)*rand))));
+			r2(i) = GoodIndices(floor(1 + numel(GoodIndices) * rand));
 			while rt(i) == r2(i) || r1(i) == r2(i)
-				r2(i) = GoodIndices(floor(1 + numel(GoodIndices)/2/(beta-1)*(beta-sqrt(beta^2-4*(beta-1)*rand))));
+				r2(i) = GoodIndices(floor(1 + numel(GoodIndices) * rand));
 			end
 			
 			% Generate r3
-			r3(i) = GoodIndices(floor(1 + numel(GoodIndices)/2/(beta-1)*(beta-sqrt(beta^2-4*(beta-1)*rand))));
+			r3(i) = GoodIndices(floor(1 + numel(GoodIndices) * rand));
 			while rt(i) == r3(i) || r1(i) == r3(i) || r2(i) == r3(i)
-				r3(i) = GoodIndices(floor(1 + numel(GoodIndices)/2/(beta-1)*(beta-sqrt(beta^2-4*(beta-1)*rand))));
+				r3(i) = GoodIndices(floor(1 + numel(GoodIndices) * rand));
 			end
 		end
 	end

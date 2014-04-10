@@ -1,10 +1,13 @@
-mainfilename = 'complete_cec13_201404081652.mat';
-subfilename = 'complete_cec13_201404081658.mat';
-xlsfilename = 'complete_cec13_201404081652.xlsx';
+mainfile	= 'complete_cec13_201404101001';
+subfile		= 'complete_cec13_201404101001';
+mainfilename = sprintf('%s.mat', mainfile);
+xlsfilename = sprintf('%s.xlsx', mainfile);
+subfilename = sprintf('%s.mat', subfile);
 
 % Generate Measurements
 load(mainfilename);
 close all;
+allfvals(allfvals <= 1e-8) = 0;
 errmean		= mean(allfvals(end, :, :), 2);
 errmean		= errmean(:);
 errstd		= std(allfvals(end, :, :), [], 2);
@@ -95,8 +98,10 @@ end
 
 % Wilcoxon Rank Sum Test
 load(mainfilename);
+allfvals(allfvals <= 1e-8) = 0;
 A = reshape(allfvals(end, :, :), nruns, nfuncs);
 load(subfilename);
+allfvals(allfvals <= 1e-8) = 0;
 B = reshape(allfvals(end, :, :), nruns, nfuncs);
 w			= ranksumtest(A, B);
 POSITIVE	= sum(w=='+');

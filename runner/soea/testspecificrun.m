@@ -2,19 +2,19 @@
 %function, maximal function evaluations.
 startTime = tic;
 close all;
-solver = 'shade_s';
-fitfun = 'cec13_f11';
+solver = 'degl_s';
+fitfun = 'cec13_f14';
 D = 30;
 maxfunevals = D * 1e4;
 solverOptions.nonlcon = [];
 % solverOptions.Q = inf;
 solverOptions.Q = 70;
 % solverOptions.dimensionFactor = 5;
-% solverOptions.NP = 100;
+solverOptions.NP = 150;
 % solverOptions.H = 100;
 % solverOptions.F = 1.0;
 % solverOptions.G = 0.5;
-% solverOptions.CR = 0.5;
+% solverOptions.CR = 0.9;
 % solverOptions.R = 0.5;
 % solverOptions.cc = 0.05;
 % solverOptions.pmin = 2/100;
@@ -53,7 +53,7 @@ ub = 100 * ones(D, 1);
 % disp(out.bestever.fmin);
 % fprintf('xmin = \n');
 % disp(xmin);
-fprintf('fes = %.4E\n', out.fes(end));
+% fprintf('fes = %.4E\n', out.fes(end));
 fprintf('fmin = %.4E\n', fmin);
 % if strncmp('bbob12', fitfun, 6)
 % 	fprintf('fmin - fopt = %.4E\n', fmin - feval(fitfun, 'xopt'));
@@ -141,7 +141,7 @@ end
 
 if isfield(out, 'mu_F')
 	figure;
-	semilogy(out.fes, out.mu_F);
+	plot(out.fes, out.mu_CR);
 	title(sprintf('Solve %s by %s', fitfun, solver));
 	xlabel('FEs');
 	ylabel('mu_F');
