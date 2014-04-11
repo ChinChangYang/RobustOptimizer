@@ -2,7 +2,7 @@ function [allout, allfvals, allfes, T0, T1, T2] = complete_cec14(...
 	solver, ...
 	measureOptions, ...
 	solverOptions)
-% COMPLETE_CEC13 complete CEC'14 experiments
+% COMPLETE_CEC14 complete CEC'14 experiments
 
 % Deal with input arguments
 if nargin <= 0
@@ -77,42 +77,42 @@ for ifitfun = 1 : length(fitfuns)
 end
 
 % % Computational complexity
-T0 = nan;
-T1 = nan;
-T2 = nan;
-% fprintf('Computing T0.....');
-% startT0 = tic;
-% for i = 1 : 1000000
-% 	x = 0.55 + double(i);
-% 	x = x + x;
-% 	x = x ./ 2;
-% 	x = x * x;
-% 	x = sqrt(x);
-% 	x = log(x);
-% 	x = exp(x);
-% 	y = x/x;
-% end
-% T0 = toc(startT0) + y - y;
-% fprintf('Done\n');
-% fprintf('Computing T1.....');
-% startT1 = tic;
-% for i = 1 : 200000
-% 	feval('cec14_f18', rand(D, 1));
-% end
-% T1 = toc(startT1);
-% fprintf('Done\n');
-% fprintf('Computing T2');
-% allT2 = zeros(5, 1);
-% solverOptions.ftarget = -inf;
-% solverOptions.TolX = -inf;
-% solverOptions.TolStagnationIteration = inf;
-% solverOptions.RecordPoint = 0;
-% for i = 1 : 5
-% 	fprintf('.');
-% 	startT2 = tic;
-% 	feval(solver, 'cec14_f18', lb, ub, 200000, solverOptions);
-% 	allT2(i) = toc(startT2);
-% end
-% T2 = mean(allT2);
-% fprintf('Done\n');
+% T0 = nan;
+% T1 = nan;
+% T2 = nan;
+fprintf('Computing T0.....');
+startT0 = tic;
+for i = 1 : 1000000
+	x = 0.55 + double(i);
+	x = x + x;
+	x = x ./ 2;
+	x = x * x;
+	x = sqrt(x);
+	x = log(x);
+	x = exp(x);
+	x = x/(x+2); %#ok<NASGU>
+end
+T0 = toc(startT0);
+fprintf('Done\n');
+fprintf('Computing T1.....');
+startT1 = tic;
+for i = 1 : 200000
+	feval('cec14_f18', rand(D, 1));
+end
+T1 = toc(startT1);
+fprintf('Done\n');
+fprintf('Computing T2');
+allT2 = zeros(5, 1);
+solverOptions.ftarget = -inf;
+solverOptions.TolX = -inf;
+solverOptions.TolStagnationIteration = inf;
+solverOptions.RecordPoint = 0;
+for i = 1 : 5
+	fprintf('.');
+	startT2 = tic;
+	feval(solver, 'cec14_f18', lb, ub, 200000, solverOptions);
+	allT2(i) = toc(startT2);
+end
+T2 = mean(allT2);
+fprintf('Done\n');
 end
