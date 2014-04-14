@@ -1,16 +1,17 @@
 %TESTSPECIFICRUN Test a specific experiment of certain solver, test
 %function, maximal function evaluations.
 startTime = tic;
+clear;
 close all;
-solver = 'degl_s';
-fitfun = 'cec13_f14';
-D = 30;
+solver = 'sade_s';
+fitfun = 'cec14_f30';
+D = 100;
 maxfunevals = D * 1e4;
 solverOptions.nonlcon = [];
 % solverOptions.Q = inf;
 solverOptions.Q = 70;
 % solverOptions.dimensionFactor = 5;
-solverOptions.NP = 150;
+solverOptions.NP = 5*D;
 % solverOptions.H = 100;
 % solverOptions.F = 1.0;
 % solverOptions.G = 0.5;

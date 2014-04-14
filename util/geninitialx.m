@@ -1,6 +1,7 @@
+rng('default');
 lb = -100;
 ub = 100;
-D = [10, 30, 50];
+D = [10, 20, 30, 50, 100];
 for i = 1 : numel(D)
 	Di = D(i);
 	NP = 5 * Di;
