@@ -1,5 +1,5 @@
-mainfile	= 'cec14D50_derand1bin_Q4_201404151604';
-subfile		= 'cec14D50_derand1bin_s_Q4_201404151820';
+mainfile	= 'cec14D50_jadebin_Q4_201404170333';
+subfile		= 'cec14D50_jade_s_Q4_201404170541';
 mainfilename = sprintf('%s.mat', mainfile);
 xlsfilename = sprintf('%s.xlsx', mainfile);
 subfilename = sprintf('%s.mat', subfile);
@@ -30,7 +30,18 @@ for i = 1 : nfuncs
 		q(j, :, :, i) = allout{j, i}.FC;
 	end
 end
-q			= reshape(q, nruns * NP, nprogress, nfuncs);
+qsorted = q;
+for i = 1 : nfuncs
+	qsorted(:, :, :, i) = q(sortindices(:, :, i), :, :, i);
+end
+qmedian		= qsorted(round(0.5 * (end + 1)), :, :, :);
+qmedianmean = mean(qmedian, 2);
+qmedianmean = reshape(qmedianmean, nprogress, nfuncs)';
+qmedianmax	= max(qmedian, [], 2);
+qmedianmax	= reshape(qmedianmax, nprogress, nfuncs)';
+qmedian		= reshape(qmedian, NP, nprogress, nfuncs);
+qmediansum	= sum(qmedian > solverOptions.Q);
+qmediansum = reshape(qmediansum, nprogress, nfuncs)';
 fes			= allout{1, 1}.fes;
 G			= allout{1, 1}.G;
 
@@ -63,6 +74,8 @@ xlswrite(xlsfilename, {'SR'}, 'Error', 'C1');
 xlswrite(xlsfilename, succrate, 'Error', 'C2:C31');
 xlswrite(xlsfilename, G, 'Convergence', 'A1:U1');
 xlswrite(xlsfilename, errmedian, 'Convergence', 'A2:U31');
+xlswrite(xlsfilename, G, 'q > Q', 'A1:U1');
+xlswrite(xlsfilename, qmediansum, 'q > Q', 'A2:U31');
 
 % Convergence Graph (Example)
 figure;
@@ -73,10 +86,17 @@ ylabel('Solution Error');
 
 % Dynamic of q value (Example)
 figure;
-boxplot(q(:, :, 18), G, 'colors', 'k', 'plotstyle','compact');
+boxplot(qmedian(:, :, 18), G, 'colors', 'k', 'plotstyle','compact');
 title('Function 18');
 xlabel('Generation');
 ylabel('q');
+
+% Dynamic of the number of q > Q
+figure;
+plot(G, qmediansum(18, :), 'k');
+title('Function 18');
+xlabel('Generation');
+ylabel('Number of q > Q');
 
 % Dynamic of MF value (Example)
 if isfield(allout{1, 1}, 'MF')
