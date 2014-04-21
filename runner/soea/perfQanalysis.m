@@ -1,13 +1,14 @@
 clear;
-load('filenames_201404131626.mat');
+load('filenames_201404182025.mat');
 [nQ, nA] = size(filenames);
-load(filenames{1, 1});
+filenames_tmp = filenames;
+load(filenames_tmp{1, 1});
 [~, ~, nF] = size(allfvals);
 ME = zeros(nF, nA, nQ);
 
 for i = 1 : nQ
 	for j = 1 : nA
-		load(filenames{i, j});
+		load(filenames_tmp{i, j});
 		ME(:, j, i) = mean(allfvals(end, :, :), 2);
 	end
 end

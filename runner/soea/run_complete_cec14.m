@@ -17,8 +17,9 @@ solvers = {...
 	'rbdebin', 'rbde_s', ...
 	'sadebin', 'sade_s', ...
 	'shade', 'shade_s'};
-Q = floor(10.^linspace(0,3,10));
-measureOptions.Dimension = 10;
+% Q = floor(10.^linspace(0,3,10));
+Q = 21;
+measureOptions.Dimension = 50;
 measureOptions.Runs = 51;
 measureOptions.MaxFunEvals = measureOptions.Dimension * 1e4;
 measureOptions.LowerBounds = -100;
@@ -84,4 +85,3 @@ for isolver = 1 : numel(solvers)
 	
 	save(metafilename, 'filenames', 'Q');
 end
-
