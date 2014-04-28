@@ -1,18 +1,21 @@
-load('filenames_201404241039.mat');
+clear;
+load('filenames_201404241706.mat');
 nfilenames = numel(filenames);
-filenames_all = cell(2, nfilenames);
-for iSolver = 1 : nfilenames
-	filenames_all{1, iSolver} = filenames{iSolver};
+nmainalgo = nfilenames / 2;
+filenames_all = cell(2, nmainalgo);
+for iSolver = 1 : 2 : nfilenames
+	filenames_all{1, 0.5 * (iSolver + 1)} = filenames{iSolver};
 end
-load('filenames_s_201404241041.mat');
-for iSolver = 1 : nfilenames
-	filenames_all{2, iSolver} = filenames{iSolver};
+for iSolver = 2 : 2 : nfilenames
+	filenames_all{2, 0.5 * iSolver} = filenames{iSolver};
 end
-tablefilename		= 'CEC14_D50_Q21_TABLE.xlsx';
-convfilename		= 'CEC14_D50_Q21_CONV.xlsx';
-qdynfliename		= 'CEC14_D50_Q21_QDYN.xlsx';
-xstdfilename		= 'CEC14_D50_Q21_XSTD.xlsx';
-solver_all			= cell(2, nfilenames);
+D = 30;
+Q = 46;
+tablefilename		= sprintf('CEC14_D%d_Q%d_TABLE.xlsx', D, Q);
+convfilename		= sprintf('CEC14_D%d_Q%d_CONV.xlsx', D, Q);
+qdynfliename		= sprintf('CEC14_D%d_Q%d_QDYN.xlsx', D, Q);
+xstdfilename		= sprintf('CEC14_D%d_Q%d_XSTD.xlsx', D, Q);
+solver_all			= cell(2, nmainalgo);
 ranksumtestsheet	= 'Rank Sum Test';
 
 xlswrite(tablefilename, ...
@@ -36,7 +39,7 @@ xlswrite(tablefilename, ...
 	'Param', ...
 	'B1:B7');
 
-for iSolver = 1 : nfilenames
+for iSolver = 1 : nmainalgo
 	for iSV = 1 : 2
 		load(filenames_all{iSV, iSolver});
 		solver_all{iSV, iSolver} = solver;
