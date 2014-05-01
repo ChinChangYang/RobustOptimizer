@@ -30,11 +30,10 @@ A robustness measure is developed to determine the most best solver. Currently, 
 
 The solvers are tested over various maximal function evaluations to see their robustness on the balance between expoitation and exploration power. Furthermore, the solvers are compared under the empirical cumulative distribution function values, in which we can see their error differences to the best solver for each test case. To simplify the results, number of win cases of each solver is also adopted to evaluate its robustness.
 
-Feature in 4th Milestone
+Feature
 ------------------------
 
 ### Algorithm
-* CMA-ES
 * DE/best/1/bin
 * DE/rand/1/bin
 * DEGL
@@ -43,13 +42,15 @@ Feature in 4th Milestone
 * Drift-free DE (DFDE)
 * D-CMA-EA
 * Rank-based DE (RBDE)
-* Novel eigenvector-based crossover operator
+* SHADE
+* Eigenvector-based crossover operator
  
 ### Benchmark
 * CEC 2005 benchmark
 * CEC 2011 benchmark
 * BBOB 2012 benchmark
 * CEC 2013 benchmark
+* CEC 2014 benchmark
  
 ### Measure
 * Solution error
