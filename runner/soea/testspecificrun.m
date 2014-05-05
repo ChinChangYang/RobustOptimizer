@@ -3,36 +3,23 @@
 startTime = tic;
 clear;
 close all;
-solver = 'sade_s';
-fitfun = 'cec14_f30';
-D = 100;
+rng('default');
+load('InitialX.mat');
+solver = 'debest1bin_e';
+fitfun = 'cec14_f4';
+D = 30;
 maxfunevals = D * 1e4;
 solverOptions.nonlcon = [];
-% solverOptions.Q = inf;
-solverOptions.Q = 70;
-% solverOptions.dimensionFactor = 5;
-solverOptions.NP = 5*D;
-% solverOptions.H = 100;
-% solverOptions.F = 1.0;
-% solverOptions.G = 0.5;
-% solverOptions.CR = 0.9;
-% solverOptions.R = 0.5;
-% solverOptions.cc = 0.05;
-% solverOptions.pmin = 2/100;
-% solverOptions.pmax = 0.2;
-% solverOptions.deltaF = 0.02;
-% solverOptions.deltaG = 0.1;
-% solverOptions.deltaCR = 0.1;
-% solverOptions.deltaR = 0.1;
-% solverOptions.deltaPMAX = 0.05;
-% solverOptions.TolX = 1e-8;
-% solverOptions.TolFun = 0;
-% solverOptions.TolStagnationIteration = 100;
+solverOptions.Q = 21;
+solverOptions.NP = 5 * D;
 solverOptions.ftarget = 1e-8;
 solverOptions.Restart = 0;
 solverOptions.Display = 'off';
 solverOptions.RecordPoint = 21;
 solverOptions.Noise = false;
+solverOptions.initial.X = eval(sprintf('XD%dNP%d', ...
+	D, ...
+	solverOptions.NP));
 % lb = -5 * ones(D, 1);
 % ub = 5 * ones(D, 1);
 lb = -100 * ones(D, 1);
@@ -102,20 +89,12 @@ title('Std. of X solutions');
 subplot(235);
 hold off;
 if solverOptions.Noise
-	loglog(out.fes, out.distancemin, 'r');
-	hold on;
-	loglog(out.fes, out.distancemax, 'r');
-	loglog(out.fes, out.distancemean, 'b');
-	loglog(out.fes, out.distancemedian, 'g');
+	loglog(out.G, out.distancemean);
 else
-	semilogy(out.fes, out.distancemin, 'r');
-	hold on;
-	semilogy(out.fes, out.distancemax, 'r');
-	semilogy(out.fes, out.distancemean, 'b');
-	semilogy(out.fes, out.distancemedian, 'g');
+	semilogy(out.G, out.distancemean);
 end
-xlabel('FEs');
-title('Distances between each pair of X');
+xlabel('Generation');
+title('Mean of distances between the target vectors and the centroid');
 subplot(236);
 hold off;
 semilogy(out.fes, out.cond);
@@ -306,10 +285,38 @@ if isfield(out, 'FC')
 % 	print(sprintf('%s.tiff', fitfun), '-dtiff');
 end
 
+if isfield(out, 'FC')
+	figure;
+	plot(out.G, mean(out.FC));
+	title(sprintf('Solve %s by %s', fitfun, solver));
+	xlabel('Generation');
+	ylabel('Recent Consecutive Unsuccessful Trial Vectors');
+% 	print(sprintf('%s.tiff', fitfun), '-dtiff');
+end
+
 figure;
 semilogy(out.fes, mean(out.xstd));
 title(sprintf('Solve %s by %s', fitfun, solver));
 xlabel('FEs');
 ylabel('St. D. of Target Vectors');
+
+if isfield(out, 'S_FC') && isfield(out, 'S_mFC')
+	fprintf('mean(out.S_FC) = %f\n', mean(out.S_FC));
+	fprintf('mean(out.S_mFC) = %f\n', mean(out.S_mFC));
+	if mean(out.S_FC) < mean(out.S_mFC)
+		fprintf('mean(out.S_FC) < mean(out.S_mFC)\n');
+	else
+		fprintf('mean(out.S_FC) >= mean(out.S_mFC)\n');
+	end
+end
+
+if isfield(out, 'mFC') && isfield(out, 'mSFC')
+	plot(out.G, out.mFC, 'b');
+	hold on;
+	plot(out.G, out.mSFC, 'r');
+	title(sprintf('Solve %s by %s', fitfun, solver));
+	xlabel('Generation');
+	ylabel('Number');
+end
 
 % toc(startTime);
