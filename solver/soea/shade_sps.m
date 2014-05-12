@@ -1,9 +1,9 @@
-function [xmin, fmin, out] = debest1bin_sps(fitfun, lb, ub, maxfunevals, options)
-% DEBEST1BIN_SPS DE/BEST/1/BIN with SPS Framework
-% DEBEST1BIN_SPS(fitfun, lb, ub, maxfunevals) minimize the function fitfun in
+function [xmin, fmin, out] = shade_sps(fitfun, lb, ub, maxfunevals, options)
+% SHADE_SPS SHADE algorithm with SPS Framework
+% SHADE_SPS(fitfun, lb, ub, maxfunevals) minimize the function fitfun in
 % box constraints [lb, ub] with the maximal function evaluations
 % maxfunevals.
-% DEBEST1BIN_SPS(..., options) minimize the function by solver options.
+% SHADE_SPS(..., options) minimize the function by solver options.
 if nargin <= 4
 	options = [];
 end
@@ -18,31 +18,39 @@ defaultOptions.ftarget = -Inf;
 defaultOptions.TolStagnationIteration = Inf;
 defaultOptions.initial.X = [];
 defaultOptions.initial.f = [];
+defaultOptions.initial.A = [];
+defaultOptions.initial.MCR = [];
+defaultOptions.initial.MF = [];
 
 options = setdefoptions(options, defaultOptions);
-F = options.F;
-CR = options.CR;
 Q = options.Q;
 isDisplayIter = strcmp(options.Display, 'iter');
 RecordPoint = max(0, floor(options.RecordPoint));
 ftarget = options.ftarget;
 TolStagnationIteration = options.TolStagnationIteration;
 
-D = numel(lb);
-
 if ~isempty(options.initial)
 	options.initial = setdefoptions(options.initial, defaultOptions.initial);
 	X = options.initial.X;
 	fx = options.initial.f;
+	A = options.initial.A;
+	MCR = options.initial.MCR;
+	MF = options.initial.MF;
 else
 	X = [];
 	fx = [];
+	A = [];
+	MCR = [];
+	MF = [];
 end
 
+D = numel(lb);
 if isempty(X)	
 	NP = options.NP;
+	H = NP;
 else
 	[~, NP] = size(X);
+	H = NP;
 end
 
 % Initialize variables
@@ -58,7 +66,7 @@ if isDisplayIter
 end
 
 % Initialize population
-if isempty(X)
+if isempty(X)	
 	X = zeros(D, NP);
 	for i = 1 : NP
 		X(:, i) = lb + (ub - lb) .* rand(D, 1);
@@ -74,18 +82,47 @@ if isempty(fx)
 	end
 end
 
+% Initialize archive
+if isempty(A)
+	A = X;
+end
+
 % Sort
 [fx, fidx] = sort(fx);
 X = X(:, fidx);
 
+% mu_F
+if isempty(MF)
+	MF = options.F * ones(H, 1);
+end
+
+% mu_CR
+if isempty(MCR)
+	MCR = options.CR * ones(H, 1);
+end
+
 % Initialize variables
 V = X;
 U = X;
+k = 1;
+r = zeros(1, NP);
+p = zeros(1, NP);
+pmin = 2 / NP;
+A_size = 0;
 fu = zeros(1, NP);
+S_CR = zeros(1, NP);	% Set of crossover rate
+S_F = zeros(1, NP);		% Set of scaling factor
+S_df = zeros(1, NP);	% Set of df
 FC = zeros(1, NP);		% Consecutive Failure Counter
+rt = zeros(1, NP);
+r1 = zeros(1, NP);
+r2 = zeros(1, NP);
+Chy = cauchyrnd(0, 0.1, NP + 10);
+iChy = 1;
 SP = X;
 fSP = fx;
 iSP = 1;
+[~, sortidxfSP] = sort(fSP);
 
 % Display
 if isDisplayIter
@@ -104,53 +141,101 @@ while true
 	% Termination conditions
 	outofmaxfunevals = counteval > maxfunevals - NP;
 	reachftarget = min(fx) <= ftarget;
-	stagnation = countStagnation >= TolStagnationIteration;	
+	stagnation = countStagnation >= TolStagnationIteration;
 	if outofmaxfunevals || reachftarget || stagnation
 		break;
 	end
 	
-	% Mutation
-	[~, ibestX] = min(fx);
-	[~, ibestSP] = min(fSP);
-	for i = 1 : NP			
+	% Reset S
+	nS = 0;
+	
+	% Crossover rates
+	CR = zeros(1, NP);
+	
+	for i = 1 : NP
+		r(i) = floor(1 + H * rand);
+		CR(i) = MCR(r(i)) + 0.1 * randn;
+	end
+	
+	CR(CR > 1) = 1;
+	CR(CR < 0) = 0;
+	
+	% Scaling factors
+	F = zeros(1, NP);
+	for i = 1 : NP
+		while F(i) <= 0
+			F(i) = MF(r(i)) + Chy(iChy);
+			if iChy < numel(Chy)
+				iChy = iChy + 1;
+			else
+				iChy = 1;
+			end
+		end
+		
+		if F(i) > 1
+			F(i) = 1;
+		end
+	end
+	
+	% pbest
+	for i = 1 : NP
+		p(i) = pmin + rand * (0.2 - pmin);
+	end
+	
+	XA = [X, A];
+	SPA = [SP, A];
+	
+	for i = 1 : NP
+		rt(i) = i;
+		
 		% Generate r1
-		r1 = floor(1 + NP * rand);
-		while i == r1
-			r1 = floor(1 + NP * rand);
+		r1(i) = floor(1 + NP * rand);
+		while rt(i) == r1(i)
+			r1(i) = floor(1 + NP * rand);
 		end
 		
 		% Generate r2
-		r2 = floor(1 + NP * rand);
-		while i == r2 || r1 == r2
-			r2 = floor(1 + NP * rand);
+		r2(i) = floor(1 + (NP + A_size) * rand);
+		while rt(i) == r1(i) || r1(i) == r2(i)
+			r2(i) = floor(1 + (NP + A_size) * rand);
 		end
+	end
+	
+	% Mutation
+	for i = 1 : NP
+		% Generate pbest_idx
+		pbest = floor(1 + round(p(rt(i)) * NP) * rand);
 		
 		if FC(i) <= Q
-			V(:, i) = X(:, ibestX) + F .* (X(:, r1) - X(:, r2));
+			V(:, i) = X(:, rt(i)) + F(rt(i)) .* (X(:, pbest) - X(:, rt(i))) ...
+				+ F(rt(i)) .* (X(:, r1(i)) - XA(:, r2(i)));
 		else
-			V(:, i) = SP(:, ibestSP) + F .* (SP(:, r1) - SP(:, r2));
+			V(:, i) = SP(:, rt(i)) + ...
+				F(rt(i)) .* (SP(:, sortidxfSP(pbest)) - SP(:, rt(i))) ...
+				+ F(rt(i)) .* (SP(:, r1(i)) - SPA(:, r2(i)));
 		end
 	end
 	
 	for i = 1 : NP
 		% Binominal Crossover
 		jrand = floor(1 + D * rand);
+		
 		if FC(i) <= Q
 			for j = 1 : D
-				if rand < CR || j == jrand
+				if rand < CR(i) || j == jrand
 					U(j, i) = V(j, i);
 				else
-					U(j, i) = X(j, i);
+					U(j, i) = X(j, rt(i));
 				end
 			end
 		else
 			for j = 1 : D
-				if rand < CR || j == jrand
+				if rand < CR(i) || j == jrand
 					U(j, i) = V(j, i);
 				else
-					U(j, i) = SP(j, i);
+					U(j, i) = SP(j, rt(i));
 				end
-			end			
+			end
 		end
 	end
 	
@@ -159,17 +244,17 @@ while true
 		if FC(i) <= Q
 			for j = 1 : D
 				if U(j, i) < lb(j)
-					U(j, i) = 0.5 * (lb(j) + X(j, i));
+					U(j, i) = 0.5 * (lb(j) + X(j, rt(i)));
 				elseif U(j, i) > ub(j)
-					U(j, i) = 0.5 * (ub(j) + X(j, i));
+					U(j, i) = 0.5 * (ub(j) + X(j, rt(i)));
 				end
 			end
 		else
 			for j = 1 : D
 				if U(j, i) < lb(j)
-					U(j, i) = 0.5 * (lb(j) + SP(j, i));
+					U(j, i) = 0.5 * (lb(j) + SP(j, rt(i)));
 				elseif U(j, i) > ub(j)
-					U(j, i) = 0.5 * (ub(j) + SP(j, i));
+					U(j, i) = 0.5 * (ub(j) + SP(j, rt(i)));
 				end
 			end
 		end
@@ -191,22 +276,47 @@ while true
 	FailedIteration = true;
 	for i = 1 : NP		
 		if fu(i) < fx(i)
+			nS = nS + 1;
+			S_CR(nS)	= CR(rt(i));
+			S_F(nS)		= F(rt(i));
+			S_df(nS)	= abs(fu(i) - fx(i));
 			X(:, i)		= U(:, i);
 			fx(i)		= fu(i);
 			SP(:, iSP)	= U(:, i);
 			fSP(iSP)	= fu(i);
 			iSP			= mod(iSP, NP) + 1;
-			FailedIteration = false;
 			FC(i)		= 0;
+			
+			if A_size < NP
+				A_size = A_size + 1;
+				A(:, A_size) = X(:, i);
+			else
+				ri = floor(1 + NP * rand);
+				A(:, ri) = X(:, i);
+			end
+			
+			FailedIteration = false;
 		else
 			FC(i) = FC(i) + 1;
 		end
 	end
 	
+	% Update MCR and MF
+	if nS > 0
+		w = S_df(1 : nS) ./ sum(S_df(1 : nS));
+		MCR(k) = sum(w .* S_CR(1 : nS));
+		MF(k) = sum(w .* S_F(1 : nS) .* S_F(1 : nS)) / sum(w .* S_F(1 : nS));
+		k = k + 1;
+		if k > H
+			k = 1;
+		end
+	end
+	
 	% Sort	
-	[fx, fidx]	= sort(fx);
-	X			= X(:, fidx);
-	FC			= FC(fidx);
+	[fx, fidx] = sort(fx);
+	X = X(:, fidx);
+	FC = FC(fidx);
+	[~, sortidxfSP] = sort(fSP);
 	
 	% Record
 	out = updateoutput(out, X, fx, counteval, countiter, ...
@@ -226,6 +336,11 @@ end
 [fmin, minindex] = min(fx);
 xmin = X(:, minindex);
 
+final.A = A;
+final.MCR = MCR;
+final.MF = MF;
+
 out = finishoutput(out, X, fx, counteval, countiter, ...
+	'final', final, ...
 	'FC', zeros(NP, 1));
 end
