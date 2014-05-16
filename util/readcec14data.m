@@ -12,8 +12,9 @@ for iQ = 1 : nQ
 	Q(iQ)				= solverOptions.Q;
 	tablefilename		= sprintf('CEC14_D%d_Q%d_TABLE.xlsx', D, Q(iQ));
 	convfilename		= sprintf('CEC14_D%d_Q%d_CONV.xlsx', D, Q(iQ));
-	qdynfliename		= sprintf('CEC14_D%d_Q%d_QDYN.xlsx', D, Q(iQ));
-	xstdfilename		= sprintf('CEC14_D%d_Q%d_XSTD.xlsx', D, Q(iQ));
+	qdynfilename		= sprintf('CEC14_D%d_Q%d_QDYN.xlsx', D, Q(iQ));
+	contfilename		= sprintf('CEC14_D%d_Q%d_CONT.xlsx', D, Q(iQ));
+	qbarfilename		= sprintf('CEC14_D%d_Q%d_QBAR.xlsx', D, Q(iQ));
 	pnfilename			= sprintf('CEC14_D%d_PN.xlsx', D);
 	solver_all			= cell(2, nA);
 	ranksumtestsheet	= 'Rank Sum Test';
@@ -40,7 +41,7 @@ for iQ = 1 : nQ
 	
 	for iA = 1 : nA
 		[solver, errmean, errstd, succrate, compcomplex, errmedian, ...
-			qmediansum, xstdmedian, fes, G] = ...
+			qmediansum, distancemedian, fes, G, qmedianmean] = ...
 			readonedata(filenames_o{iA});
 		
 		solver_all{1, iA} = solver;
@@ -56,13 +57,15 @@ for iQ = 1 : nQ
 		
 		xlswrite(convfilename, G, solver, 'A1:U1');
 		xlswrite(convfilename, errmedian, solver, 'A2:U31');
-		xlswrite(qdynfliename, G, solver, 'A1:U1');
-		xlswrite(qdynfliename, qmediansum, solver, 'A2:U31');
-		xlswrite(xstdfilename, G, solver, 'A1:U1');
-		xlswrite(xstdfilename, xstdmedian, solver, 'A2:U31');
+		xlswrite(qdynfilename, G, solver, 'A1:U1');
+		xlswrite(qdynfilename, qmediansum, solver, 'A2:U31');
+		xlswrite(contfilename, G, solver, 'A1:U1');
+		xlswrite(contfilename, distancemedian, solver, 'A2:U31');
+		xlswrite(qbarfilename, G, solver, 'A1:U1');
+		xlswrite(qbarfilename, qmedianmean, solver, 'A2:U31');
 		
 		[solver, errmean, errstd, succrate, compcomplex, errmedian, ...
-			qmediansum, xstdmedian, fes, G] = ...
+			qmediansum, distancemedian, fes, G, qmedianmean] = ...
 			readonedata(filenames_sps{iQ, iA});
 		
 		solver_all{2, iA} = solver;
@@ -78,10 +81,12 @@ for iQ = 1 : nQ
 		
 		xlswrite(convfilename, G, solver, 'A1:U1');
 		xlswrite(convfilename, errmedian, solver, 'A2:U31');
-		xlswrite(qdynfliename, G, solver, 'A1:U1');
-		xlswrite(qdynfliename, qmediansum, solver, 'A2:U31');
-		xlswrite(xstdfilename, G, solver, 'A1:U1');
-		xlswrite(xstdfilename, xstdmedian, solver, 'A2:U31');
+		xlswrite(qdynfilename, G, solver, 'A1:U1');
+		xlswrite(qdynfilename, qmediansum, solver, 'A2:U31');
+		xlswrite(contfilename, G, solver, 'A1:U1');
+		xlswrite(contfilename, distancemedian, solver, 'A2:U31');
+		xlswrite(qbarfilename, G, solver, 'A1:U1');
+		xlswrite(qbarfilename, qmedianmean, solver, 'A2:U31');
 		
 		% Wilcoxon Rank Sum Test		
 		load(filenames_o{iA});
@@ -171,7 +176,7 @@ xlswrite(pnfilename, ...
 end
 
 function [solver, errmean, errstd, succrate, compcomplex, errmedian, ...
-	qmediansum, xstdmedian, fes, G] = readonedata(filename)
+	qmediansum, distancemedian, fes, G, qmedianmean] = readonedata(filename)
 
 load(filename);
 
@@ -211,18 +216,18 @@ qmedianmax	= reshape(qmedianmax, nprogress, nfuncs)';
 qmedian		= reshape(qmedian, NP, nprogress, nfuncs);
 qmediansum	= sum(qmedian > solverOptions.Q);
 qmediansum	= reshape(qmediansum, nprogress, nfuncs)';
-xstd		= zeros(nruns, nprogress, nfuncs);
+distance	= zeros(nruns, nprogress, nfuncs);
 for j = 1 : nfuncs
 	for k = 1 : nruns
-		xstd(k, :, j) = mean(allout{k, j}.xstd);
+		distance(k, :, j) = allout{k, j}.distancemean;
 	end
 end
-xstdsorted = xstd;
+distancesorted = distance;
 for j = 1 : nfuncs
-	xstdsorted(:, :, j) = xstd(sortindices(:, :, j), :, j);
+	distancesorted(:, :, j) = distance(sortindices(:, :, j), :, j);
 end
-xstdmedian	= xstdsorted(round(0.5 * (end + 1)), :, :);
-xstdmedian	= reshape(xstdmedian, nprogress, nfuncs)';
+distancemedian	= distancesorted(round(0.5 * (end + 1)), :, :);
+distancemedian	= reshape(distancemedian, nprogress, nfuncs)';
 
 fes			= allout{1, 1}.fes;
 G			= allout{1, 1}.G;
