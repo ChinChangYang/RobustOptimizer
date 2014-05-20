@@ -42,7 +42,7 @@ for iQ = 1 : nQ
 	for iA = 1 : nA
 		[solver, errmean, errstd, succrate, compcomplex, errmedian, ...
 			qmediansum, distancemedian, fes, G, qmedianmean] = ...
-			readonedata(filenames_o{iA});
+			readonedata(filenames_o{iA}); %#ok<ASGLU>
 		
 		solver_all{1, iA} = solver;
 		
@@ -66,7 +66,7 @@ for iQ = 1 : nQ
 		
 		[solver, errmean, errstd, succrate, compcomplex, errmedian, ...
 			qmediansum, distancemedian, fes, G, qmedianmean] = ...
-			readonedata(filenames_sps{iQ, iA});
+			readonedata(filenames_sps{iQ, iA}); %#ok<ASGLU>
 		
 		solver_all{2, iA} = solver;
 		
@@ -103,11 +103,11 @@ for iQ = 1 : nQ
 		end
 		
 		load(filenames_o{iA});
-		allfvals(allfvals <= 1e-8) = 0; %#ok<*SAGROW>
+		allfvals(allfvals <= 1e-8) = 0; %#ok<AGROW,*SAGROW>
 		A = reshape(allfvals(end, :, :), nruns_A, nfuncs);
 		load(filenames_sps{iQ, iA});
 		[~, nruns_B, nfuncs] = size(allfvals);
-		allfvals(allfvals <= 1e-8) = 0;
+		allfvals(allfvals <= 1e-8) = 0; %#ok<AGROW>
 		B = reshape(allfvals(end, :, :), nruns_B, nfuncs);
 		w			= ranksumtest(A(1:nruns, :), B(1:nruns, :));
 		POSITIVE	= sum(w=='+');
@@ -134,10 +134,13 @@ for iQ = 1 : nQ
 			solver, ...
 			sprintf('A%d', iQ + 1));
 	end
+	
+	fprintf('%s: OK!\n', tablefilename);
 end
 
 for iA = 1 : nA	
 	load(filenames_sps{1, iA});
+	pnfilename = sprintf('CEC14_D%d_PN.xlsx', measureOptions.Dimension);
 	xlswrite(pnfilename, ...
 		{'Q', 'POSITIVE', 'EQUAL', 'NEGATIVE', 'P-N'}, ...
 		solver, ...
@@ -173,15 +176,17 @@ xlswrite(pnfilename, ...
 	sum(pn), ...
 	'ALL', ...
 	sprintf('B%d', nA + 2));
+	
+fprintf('%s: OK!\n', pnfilename);
 end
 
 function [solver, errmean, errstd, succrate, compcomplex, errmedian, ...
-	qmediansum, distancemedian, fes, G, qmedianmean] = readonedata(filename)
+	qmediansum, distancemedian, fes, G, qmedianmean] = readonedata(filename) %#ok<STOUT>
 
 load(filename);
 
 % Generate Measurements
-allfvals(allfvals <= 1e-8) = 0; %#ok<*SAGROW>
+allfvals(allfvals <= 1e-8) = 0; %#ok<NODEF,*SAGROW>
 errmean		= mean(allfvals(end, :, :), 2);
 errmean		= errmean(:);
 errstd		= std(allfvals(end, :, :), [], 2);
@@ -197,7 +202,7 @@ for j = 1 : nfuncs
 end
 errmedian	= allfvalssorted(:, round(0.5 * (end + 1)), :);
 errmedian	= reshape(errmedian, nprogress, nfuncs)';
-[NP, ~]		= size(allout{1, 1}.FC);
+[NP, ~]		= size(allout{1, 1}.FC); %#ok<USENS>
 q			= zeros(nruns, NP, nprogress, nfuncs);
 for j = 1 : nfuncs
 	for k = 1 : nruns
@@ -211,8 +216,8 @@ end
 qmedian		= qsorted(round(0.5 * (end + 1)), :, :, :);
 qmedianmean = mean(qmedian, 2);
 qmedianmean = reshape(qmedianmean, nprogress, nfuncs)';
-qmedianmax	= max(qmedian, [], 2);
-qmedianmax	= reshape(qmedianmax, nprogress, nfuncs)';
+% qmedianmax	= max(qmedian, [], 2);
+% qmedianmax	= reshape(qmedianmax, nprogress, nfuncs)';
 qmedian		= reshape(qmedian, NP, nprogress, nfuncs);
 qmediansum	= sum(qmedian > solverOptions.Q);
 qmediansum	= reshape(qmediansum, nprogress, nfuncs)';
