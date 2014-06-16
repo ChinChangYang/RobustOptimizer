@@ -103,9 +103,9 @@ end
 
 h1 = figure;
 hold off;
-plot(sort(eonorm(:)), (1 : numel(eonorm)) ./ numel(eonorm), 'b');
+plot(sort(eonorm(:)), (1 : numel(eonorm)) ./ numel(eonorm), 'k');
 hold on;
-plot(sort(espsnorm(:)), (1 : numel(espsnorm)) ./ numel(espsnorm), 'r--');
+plot(sort(espsnorm(:)), (1 : numel(espsnorm)) ./ numel(espsnorm), 'k--');
 title('ECDF over four real-world problems and 90 artificial functions');
 xlabel('NSE');
 ylabel('ECDF over all functions');
@@ -113,4 +113,4 @@ legend('DEs without the proposed framework', ...
 	'DEs with the proposed framework', ...
 	'Location', 'SouthEast');
 h1Position = get(h1, 'Position');
-set(h1, 'Position', [h1Position(1:2), 400 * 1.5, 320 * 1.5]);
+set(h1, 'Position', [h1Position(1:2), 400 * 1.2, 320 * 1.2]);
