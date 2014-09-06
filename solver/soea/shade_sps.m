@@ -21,6 +21,7 @@ defaultOptions.initial.f = [];
 defaultOptions.initial.A = [];
 defaultOptions.initial.MCR = [];
 defaultOptions.initial.MF = [];
+defaultOptions.ConstraintHandling = 'Interpolation';
 
 options = setdefoptions(options, defaultOptions);
 Q = options.Q;
@@ -28,6 +29,12 @@ isDisplayIter = strcmp(options.Display, 'iter');
 RecordPoint = max(0, floor(options.RecordPoint));
 ftarget = options.ftarget;
 TolStagnationIteration = options.TolStagnationIteration;
+
+if isequal(options.ConstraintHandling, 'Interpolation')
+	interpolation = true;
+else
+	interpolation = false;
+end
 
 if ~isempty(options.initial)
 	options.initial = setdefoptions(options.initial, defaultOptions.initial);
@@ -45,7 +52,7 @@ else
 end
 
 D = numel(lb);
-if isempty(X)	
+if isempty(X)
 	NP = options.NP;
 	H = NP;
 else
@@ -66,7 +73,7 @@ if isDisplayIter
 end
 
 % Initialize population
-if isempty(X)	
+if isempty(X)
 	X = zeros(D, NP);
 	for i = 1 : NP
 		X(:, i) = lb + (ub - lb) .* rand(D, 1);
@@ -232,22 +239,24 @@ while true
 		end
 	end
 	
-	% Correction for outside of boundaries
-	for i = 1 : NP
-		if FC(i) <= Q
-			for j = 1 : D
-				if U(j, i) < lb(j)
-					U(j, i) = 0.5 * (lb(j) + X(j, i));
-				elseif U(j, i) > ub(j)
-					U(j, i) = 0.5 * (ub(j) + X(j, i));
+	if interpolation
+		% Correction for outside of boundaries
+		for i = 1 : NP
+			if FC(i) <= Q
+				for j = 1 : D
+					if U(j, i) < lb(j)
+						U(j, i) = 0.5 * (lb(j) + X(j, i));
+					elseif U(j, i) > ub(j)
+						U(j, i) = 0.5 * (ub(j) + X(j, i));
+					end
 				end
-			end
-		else
-			for j = 1 : D
-				if U(j, i) < lb(j)
-					U(j, i) = 0.5 * (lb(j) + SP(j, i));
-				elseif U(j, i) > ub(j)
-					U(j, i) = 0.5 * (ub(j) + SP(j, i));
+			else
+				for j = 1 : D
+					if U(j, i) < lb(j)
+						U(j, i) = 0.5 * (lb(j) + SP(j, i));
+					elseif U(j, i) > ub(j)
+						U(j, i) = 0.5 * (ub(j) + SP(j, i));
+					end
 				end
 			end
 		end
@@ -267,7 +276,7 @@ while true
 	
 	% Selection
 	FailedIteration = true;
-	for i = 1 : NP		
+	for i = 1 : NP
 		if fu(i) < fx(i)
 			nS = nS + 1;
 			S_CR(nS)	= CR(i);
@@ -305,7 +314,7 @@ while true
 		end
 	end
 	
-	% Sort	
+	% Sort
 	[fx, fidx] = sort(fx);
 	X = X(:, fidx);
 	FC = FC(fidx);
@@ -323,7 +332,7 @@ while true
 		countStagnation = countStagnation + 1;
 	else
 		countStagnation = 0;
-	end	
+	end
 end
 
 [fmin, minindex] = min(fx);

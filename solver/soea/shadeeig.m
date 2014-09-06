@@ -22,6 +22,7 @@ defaultOptions.initial.f = [];
 defaultOptions.initial.A = [];
 defaultOptions.initial.MCR = [];
 defaultOptions.initial.MF = [];
+defaultOptions.ConstraintHandling = 'Interpolation';
 
 options = setdefoptions(options, defaultOptions);
 NP = options.NP;
@@ -31,6 +32,12 @@ isDisplayIter = strcmp(options.Display, 'iter');
 RecordPoint = max(0, floor(options.RecordPoint));
 ftarget = options.ftarget;
 TolStagnationIteration = options.TolStagnationIteration;
+
+if isequal(options.ConstraintHandling, 'Interpolation')
+	interpolation = true;
+else
+	interpolation = false;
+end
 
 if ~isempty(options.initial)
 	options.initial = setdefoptions(options.initial, defaultOptions.initial);
@@ -65,7 +72,7 @@ if isDisplayIter
 end
 
 % Initialize population
-if isempty(X)	
+if isempty(X)
 	X = zeros(D, NP);
 	for i = 1 : NP
 		X(:, i) = lb + (ub - lb) .* rand(D, 1);
@@ -119,7 +126,7 @@ if isDisplayIter
 end
 
 % Record
-out = updateoutput(out, X, fx, counteval, ...
+out = updateoutput(out, X, fx, counteval, countiter, ...
 	'MF', mean(MF), ...
 	'MCR', mean(MCR));
 
@@ -132,7 +139,7 @@ while true
 	reachftarget = min(fx) <= ftarget;
 	stagnation = countStagnation >= TolStagnationIteration;
 	
-	% Convergence conditions	
+	% Convergence conditions
 	if outofmaxfunevals || reachftarget || stagnation
 		break;
 	end
@@ -141,7 +148,7 @@ while true
 	nS = 0;
 	
 	% Crossover rates
-	CR = zeros(1, NP);	
+	CR = zeros(1, NP);
 	for i = 1 : NP
 		r(i) = floor(1 + H * rand);
 		CR(i) = MCR(r(i)) + 0.1 * randn;
@@ -196,14 +203,14 @@ while true
 			% Rotational Crossover
 			XT(:, i) = B' * X(:, i);
 			VT(:, i) = B' * V(:, i);
-			jrand = floor(1 + D * rand);			
+			jrand = floor(1 + D * rand);
 			for j = 1 : D
 				if rand < CR(i) || j == jrand
 					UT(j, i) = VT(j, i);
 				else
 					UT(j, i) = XT(j, i);
 				end
-			end			
+			end
 			U(:, i) = B * UT(:, i);
 		else
 			% Binominal Crossover
@@ -218,13 +225,15 @@ while true
 		end
 	end
 	
-	% Correction for outside of boundaries
-	for i = 1 : NP
-		for j = 1 : D
-			if U(j, i) < lb(j)
-				U(j, i) = 0.5 * (lb(j) + X(j, i));
-			elseif U(j, i) > ub(j)
-				U(j, i) = 0.5 * (ub(j) + X(j, i));
+	if interpolation
+		% Correction for outside of boundaries
+		for i = 1 : NP
+			for j = 1 : D
+				if U(j, i) < lb(j)
+					U(j, i) = 0.5 * (lb(j) + X(j, i));
+				elseif U(j, i) > ub(j)
+					U(j, i) = 0.5 * (ub(j) + X(j, i));
+				end
 			end
 		end
 	end
@@ -243,7 +252,7 @@ while true
 	
 	% Selection
 	FailedIteration = true;
-	for i = 1 : NP		
+	for i = 1 : NP
 		if fu(i) < fx(i)
 			nS = nS + 1;
 			S_CR(nS)	= CR(i);
@@ -259,7 +268,7 @@ while true
 				ri = floor(1 + NP * rand);
 				A(:, ri) = X(:, i);
 			end
-						
+			
 			FailedIteration = false;
 		elseif fu(i) == fx(i)
 			X(:, i) = U(:, i);
@@ -281,12 +290,12 @@ while true
 	% Update C
 	C = cov(X');
 	
-	% Sort	
+	% Sort
 	[fx, fidx] = sort(fx);
 	X = X(:, fidx);
 	
 	% Record
-	out = updateoutput(out, X, fx, counteval, ...
+	out = updateoutput(out, X, fx, counteval, countiter, ...
 		'MF', mean(MF), ...
 		'MCR', mean(MCR));
 	
@@ -298,7 +307,7 @@ while true
 		countStagnation = countStagnation + 1;
 	else
 		countStagnation = 0;
-	end	
+	end
 end
 
 fmin = fx(1);
@@ -313,7 +322,7 @@ final.A = A;
 final.MCR = MCR;
 final.MF = MF;
 
-out = finishoutput(out, X, fx, counteval, ...
+out = finishoutput(out, X, fx, counteval, countiter, ...
 	'final', final, ...
 	'MF', mean(MF), ...
 	'MCR', mean(MCR));

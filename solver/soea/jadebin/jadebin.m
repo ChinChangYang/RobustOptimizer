@@ -24,6 +24,7 @@ defaultOptions.initial.f = [];
 defaultOptions.initial.A = [];
 defaultOptions.initial.mu_CR = [];
 defaultOptions.initial.mu_F = [];
+defaultOptions.ConstraintHandling = 'Interpolation';
 
 options = setdefoptions(options, defaultOptions);
 delta_CR = options.delta_CR;
@@ -34,6 +35,12 @@ isDisplayIter = strcmp(options.Display, 'iter');
 RecordPoint = max(0, floor(options.RecordPoint));
 ftarget = options.ftarget;
 TolStagnationIteration = options.TolStagnationIteration;
+
+if isequal(options.ConstraintHandling, 'Interpolation')
+	interpolation = true;
+else
+	interpolation = false;
+end
 
 if ~isempty(options.initial)
 	options.initial = setdefoptions(options.initial, defaultOptions.initial);
@@ -209,14 +216,16 @@ while true
 			end
 		end
 	end
-	
-	% Correction for outside of boundaries
-	for i = 1 : NP
-		for j = 1 : D
-			if U(j, i) < lb(j)
-				U(j, i) = 0.5 * (lb(j) + X(j, rt(i)));
-			elseif U(j, i) > ub(j)
-				U(j, i) = 0.5 * (ub(j) + X(j, rt(i)));
+		
+	if interpolation
+		% Correction for outside of boundaries
+		for i = 1 : NP
+			for j = 1 : D
+				if U(j, i) < lb(j)
+					U(j, i) = 0.5 * (lb(j) + X(j, rt(i)));
+				elseif U(j, i) > ub(j)
+					U(j, i) = 0.5 * (ub(j) + X(j, rt(i)));
+				end
 			end
 		end
 	end

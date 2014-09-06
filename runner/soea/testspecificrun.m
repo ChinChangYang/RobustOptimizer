@@ -4,35 +4,51 @@ startTime = tic;
 clear;
 close all;
 rng('default');
-% load('InitialX.mat');
-load('InitialX_CEC11.mat');
-solver = 'jade_sps';
-fitfun = 'cec11_f12';
-D = 26;
+load('InitialX.mat');
+% load('InitialX_CEC11.mat');
+% solver = 'sadeeig';
+% solver = 'dcmaea_sps';
+% solver = 'debest1bin_sps';
+% solver = 'debest2bin';
+% solver = 'degl_sps';
+% solver = 'derand1bin_sps';
+% solver = 'derand2bin';
+% solver = 'detargettobest1bin';
+% solver = 'jade_sps';
+% solver = 'rbde_sps';
+% solver = 'sade_sps';
+% solver = 'shade';
+% solver = 'shade_sps';
+% solver = 'shade_sps_eig';
+solver = 'shadeeig';
+fitfun = 'cec14_f1';
+D = 30;
 maxfunevals = D * 1e4;
 solverOptions.nonlcon = [];
-solverOptions.Q = 64;
+solverOptions.Q = 32;
 solverOptions.NP = 5 * D;
 solverOptions.ftarget = 1e-8;
 solverOptions.Restart = 0;
 solverOptions.Display = 'iter';
 solverOptions.RecordPoint = 21;
 solverOptions.Noise = false;
-% solverOptions.initial.X = eval(sprintf('XD%dNP%d', ...
-% 	D, ...
-% 	solverOptions.NP));
-solverOptions.initial.X = eval(sprintf('XF%dNP%d', ...
-	3, ...
+% solverOptions.ConstraintHandling = 'none';
+solverOptions.ConstraintHandling = 'Interpolation';
+solverOptions.initial.X = eval(sprintf('XD%dNP%d', ...
+	D, ...
 	solverOptions.NP));
+% solverOptions.initial.X = eval(sprintf('XF%dNP%d', ...
+% 	3, ...
+% 	solverOptions.NP));
 % lb = -5 * ones(D, 1);
 % ub = 5 * ones(D, 1);
-% lb = -100 * ones(D, 1);
-% ub = 100 * ones(D, 1);
+lb = -100 * ones(D, 1);
+ub = 100 * ones(D, 1);
 % lb = -6.4 * ones(D, 1);
 % ub = 6.35 * ones(D, 1);
 % lb = zeros(20, 1);
 % ub = 4 * pi * ones(20, 1);
-[lb, ub] = getlimit_messenger;
+% [lb, ub] = getlimit_messenger;
 [xmin, fmin, out] = ...
     feval(solver, fitfun, lb, ub, maxfunevals, solverOptions);
 % fprintf('out.bestever.xmin = \n');

@@ -8,7 +8,7 @@ if nargin <= 4
 	options = [];
 end
 
-defaultOptions.dimensionFactor = 10;
+defaultOptions.NP = 100;
 defaultOptions.maxfunevalsFactor =  0;
 defaultOptions.R = 0.5;
 defaultOptions.CR = 0.5;
@@ -25,9 +25,9 @@ defaultOptions.TolFun = 0;
 defaultOptions.TolFun = eps;
 defaultOptions.TolX = 100 * eps;
 defaultOptions.X = [];
+defaultOptions.ConstraintHandling = 'Interpolation';
 
 options = setdefoptions(options, defaultOptions);
-dimensionFactor = options.dimensionFactor;
 R = options.R;
 CR = options.CR;
 F = options.F;
@@ -44,10 +44,16 @@ alpha = F;
 beta = F;
 X = options.X;
 
+if isequal(options.ConstraintHandling, 'Interpolation')
+	interpolation = true;
+else
+	interpolation = false;
+end
+
 D = numel(lb);
 
 if isempty(X)
-	NP = ceil(dimensionFactor * D);
+	NP = options.NP;
 else
 	[~, NP] = size(X);
 end
@@ -143,7 +149,7 @@ for iRestart = 1 : (Restart + 1)
 	end
 	
 	% Record
-	out = updateoutput(out, X, f, counteval);
+	out = updateoutput(out, X, f, counteval, countiter);
 	
 	% Iteration counter
 	countiter = countiter + 1;
@@ -261,13 +267,15 @@ for iRestart = 1 : (Restart + 1)
 			end
 		end
 		
-		% Repair
-		for i = 1 : NP
-			for j = 1 : D
-				if U(j, i) < lb(j)
-					U(j, i) = X(j, i) + rand * (lb(j) - X(j, i));
-				elseif U(j, i) > ub(j)
-					U(j, i) = X(j, i) + rand * (ub(j) - X(j, i));
+		if interpolation
+			% Correction for outside of boundaries
+			for i = 1 : NP
+				for j = 1 : D
+					if U(j, i) < lb(j)
+						U(j, i) = 0.5 * (lb(j) + X(j, i));
+					elseif U(j, i) > ub(j)
+						U(j, i) = 0.5 * (ub(j) + X(j, i));
+					end
 				end
 			end
 		end
@@ -324,7 +332,7 @@ for iRestart = 1 : (Restart + 1)
 		end
 		
 		% Record
-		out = updateoutput(out, X, f, counteval);
+		out = updateoutput(out, X, f, counteval, countiter);
 		
 		% Iteration counter
 		countiter = countiter + 1;
@@ -353,7 +361,7 @@ for iRestart = 1 : (Restart + 1)
 	end
 end
 
-out = finishoutput(out, X, f, counteval);
+out = finishoutput(out, X, f, counteval, countiter);
 fmin = out.bestever.fmin;
 xmin = out.bestever.xmin;
 end

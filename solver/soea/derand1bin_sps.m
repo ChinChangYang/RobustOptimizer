@@ -18,6 +18,7 @@ defaultOptions.ftarget = -Inf;
 defaultOptions.TolStagnationIteration = Inf;
 defaultOptions.initial.X = [];
 defaultOptions.initial.f = [];
+defaultOptions.ConstraintHandling = 'Interpolation';
 
 options = setdefoptions(options, defaultOptions);
 F = options.F;
@@ -27,6 +28,12 @@ isDisplayIter = strcmp(options.Display, 'iter');
 RecordPoint = max(0, floor(options.RecordPoint));
 ftarget = options.ftarget;
 TolStagnationIteration = options.TolStagnationIteration;
+
+if isequal(options.ConstraintHandling, 'Interpolation')
+	interpolation = true;
+else
+	interpolation = false;
+end
 
 D = numel(lb);
 
@@ -158,22 +165,24 @@ while true
 		end
 	end
 	
-	% Correction for outside of boundaries
-	for i = 1 : NP
-		if FC(i) <= Q
-			for j = 1 : D
-				if U(j, i) < lb(j)
-					U(j, i) = 0.5 * (lb(j) + X(j, i));
-				elseif U(j, i) > ub(j)
-					U(j, i) = 0.5 * (ub(j) + X(j, i));
+	if interpolation
+		% Correction for outside of boundaries
+		for i = 1 : NP
+			if FC(i) <= Q
+				for j = 1 : D
+					if U(j, i) < lb(j)
+						U(j, i) = 0.5 * (lb(j) + X(j, i));
+					elseif U(j, i) > ub(j)
+						U(j, i) = 0.5 * (ub(j) + X(j, i));
+					end
 				end
-			end
-		else
-			for j = 1 : D
-				if U(j, i) < lb(j)
-					U(j, i) = 0.5 * (lb(j) + SP(j, i));
-				elseif U(j, i) > ub(j)
-					U(j, i) = 0.5 * (ub(j) + SP(j, i));
+			else
+				for j = 1 : D
+					if U(j, i) < lb(j)
+						U(j, i) = 0.5 * (lb(j) + SP(j, i));
+					elseif U(j, i) > ub(j)
+						U(j, i) = 0.5 * (ub(j) + SP(j, i));
+					end
 				end
 			end
 		end

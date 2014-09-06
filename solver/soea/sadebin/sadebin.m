@@ -20,6 +20,7 @@ defaultOptions.initial.CRMemory = [];
 defaultOptions.initial.ns = [];
 defaultOptions.initial.nf = [];
 defaultOptions.initial.g = [];
+defaultOptions.ConstraintHandling = 'Interpolation';
 
 options = setdefoptions(options, defaultOptions);
 LP = round(options.LP);
@@ -27,6 +28,12 @@ isDisplayIter = strcmp(options.Display, 'iter');
 RecordPoint = max(0, floor(options.RecordPoint));
 ftarget = options.ftarget;
 TolStagnationIteration = options.TolStagnationIteration;
+
+if isequal(options.ConstraintHandling, 'Interpolation')
+	interpolation = true;
+else
+	interpolation = false;
+end
 
 if ~isempty(options.initial)
 	options.initial = setdefoptions(options.initial, defaultOptions.initial);
@@ -277,14 +284,16 @@ while true
 			fprintf('BUG\n');
 		end
 	end
-	
-	% Correction for outside of boundaries
-	for i = 1 : NP
-		for j = 1 : D
-			if U(j, i) < lb(j)
-				U(j, i) = 0.5 * (lb(j) + X(j, rt(i)));
-			elseif U(j, i) > ub(j)
-				U(j, i) = 0.5 * (ub(j) + X(j, rt(i)));
+		
+	if interpolation
+		% Correction for outside of boundaries
+		for i = 1 : NP
+			for j = 1 : D
+				if U(j, i) < lb(j)
+					U(j, i) = 0.5 * (lb(j) + X(j, rt(i)));
+				elseif U(j, i) > ub(j)
+					U(j, i) = 0.5 * (ub(j) + X(j, rt(i)));
+				end
 			end
 		end
 	end

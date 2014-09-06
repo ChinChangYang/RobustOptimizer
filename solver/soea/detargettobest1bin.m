@@ -17,6 +17,7 @@ defaultOptions.ftarget = -Inf;
 defaultOptions.TolStagnationIteration = Inf;
 defaultOptions.initial.X = [];
 defaultOptions.initial.f = [];
+defaultOptions.ConstraintHandling = 'Interpolation';
 
 options = setdefoptions(options, defaultOptions);
 F = options.F;
@@ -25,6 +26,12 @@ isDisplayIter = strcmp(options.Display, 'iter');
 RecordPoint = max(0, floor(options.RecordPoint));
 ftarget = options.ftarget;
 TolStagnationIteration = options.TolStagnationIteration;
+
+if isequal(options.ConstraintHandling, 'Interpolation')
+	interpolation = true;
+else
+	interpolation = false;
+end
 
 D = numel(lb);
 
@@ -37,7 +44,7 @@ else
 	fx = [];
 end
 
-if isempty(X)	
+if isempty(X)
 	NP = options.NP;
 else
 	[~, NP] = size(X);
@@ -102,7 +109,7 @@ while true
 	% Termination conditions
 	outofmaxfunevals = counteval > maxfunevals - NP;
 	reachftarget = min(fx) <= ftarget;
-	stagnation = countStagnation >= TolStagnationIteration;	
+	stagnation = countStagnation >= TolStagnationIteration;
 	if outofmaxfunevals || reachftarget || stagnation
 		break;
 	end
@@ -123,11 +130,11 @@ while true
 		end
 	end
 	
-	% Mutation	
+	% Mutation
 	[~, bestindex] = min(fx);
-	for i = 1 : NP		
+	for i = 1 : NP
 		V(:, i) = X(:, rt(i)) + F .* (X(:, bestindex) - X(:, rt(i))) ...
-			 + F .* (X(:, r1(i)) - X(:, r2(i)));
+			+ F .* (X(:, r1(i)) - X(:, r2(i)));
 	end
 	
 	for i = 1 : NP
@@ -142,13 +149,15 @@ while true
 		end
 	end
 	
-	% Correction for outside of boundaries
-	for i = 1 : NP
-		for j = 1 : D
-			if U(j, i) < lb(j)
-				U(j, i) = 0.5 * (lb(j) + X(j, rt(i)));
-			elseif U(j, i) > ub(j)
-				U(j, i) = 0.5 * (ub(j) + X(j, rt(i)));
+	if interpolation
+		% Correction for outside of boundaries
+		for i = 1 : NP
+			for j = 1 : D
+				if U(j, i) < lb(j)
+					U(j, i) = 0.5 * (lb(j) + X(j, rt(i)));
+				elseif U(j, i) > ub(j)
+					U(j, i) = 0.5 * (ub(j) + X(j, rt(i)));
+				end
 			end
 		end
 	end
@@ -167,7 +176,7 @@ while true
 	
 	% Selection
 	FailedIteration = true;
-	for i = 1 : NP		
+	for i = 1 : NP
 		if fu(i) < fx(i)
 			X(:, i)		= U(:, i);
 			fx(i)		= fu(i);
@@ -178,7 +187,7 @@ while true
 		end
 	end
 	
-	% Sort	
+	% Sort
 	[fx, fidx] = sort(fx);
 	X = X(:, fidx);
 	FC = FC(fidx);
@@ -195,7 +204,7 @@ while true
 		countStagnation = countStagnation + 1;
 	else
 		countStagnation = 0;
-	end	
+	end
 end
 
 [fmin, minindex] = min(fx);

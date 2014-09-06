@@ -8,7 +8,7 @@ if nargin <= 4
 	options = [];
 end
 
-defaultOptions.dimensionFactor = 5;
+defaultOptions.NP = 100;
 defaultOptions.F = 0.5;
 defaultOptions.CR = 0.5;
 defaultOptions.R = 0.5;
@@ -25,9 +25,9 @@ defaultOptions.initial.f = [];
 defaultOptions.initial.A = [];
 defaultOptions.initial.mu_CR = [];
 defaultOptions.initial.mu_F = [];
+defaultOptions.ConstraintHandling = 'Interpolation';
 
 options = setdefoptions(options, defaultOptions);
-dimensionFactor = options.dimensionFactor;
 delta_CR = options.delta_CR;
 delta_F = options.delta_F;
 R = options.R;
@@ -37,6 +37,12 @@ isDisplayIter = strcmp(options.Display, 'iter');
 RecordPoint = max(0, floor(options.RecordPoint));
 ftarget = options.ftarget;
 TolStagnationIteration = options.TolStagnationIteration;
+
+if isequal(options.ConstraintHandling, 'Interpolation')
+	interpolation = true;
+else
+	interpolation = false;
+end
 
 if ~isempty(options.initial)
 	options.initial = setdefoptions(options.initial, defaultOptions.initial);
@@ -55,7 +61,7 @@ end
 
 D = numel(lb);
 if isempty(X)
-	NP = max(1, ceil(dimensionFactor * D));
+	NP = options.NP;
 else
 	[~, NP] = size(X);
 end
@@ -125,7 +131,7 @@ if isDisplayIter
 end
 
 % Record
-out = updateoutput(out, X, f, counteval, ...
+out = updateoutput(out, X, f, counteval, countiter, ...
 	'MF', mu_F, 'MCR', mu_CR);
 
 % Iteration counter
@@ -208,13 +214,15 @@ while true
 		end
 	end
 	
-	% Correction for outside of boundaries
-	for i = 1 : NP
-		for j = 1 : D
-			if U(j, i) < lb(j)
-				U(j, i) = 0.5 * (lb(j) + X(j, i));
-			elseif U(j, i) > ub(j)
-				U(j, i) = 0.5 * (ub(j) + X(j, i));
+	if interpolation
+		% Correction for outside of boundaries
+		for i = 1 : NP
+			for j = 1 : D
+				if U(j, i) < lb(j)
+					U(j, i) = 0.5 * (lb(j) + X(j, i));
+				elseif U(j, i) > ub(j)
+					U(j, i) = 0.5 * (ub(j) + X(j, i));
+				end
 			end
 		end
 	end
@@ -262,7 +270,7 @@ while true
 	X = X(:, fidx);
 	
 	% Record
-	out = updateoutput(out, X, f, counteval, ...
+	out = updateoutput(out, X, f, counteval, countiter, ...
 		'MF', mu_F, 'MCR', mu_CR);
 	
 	% Iteration counter
@@ -288,7 +296,7 @@ final.A = A;
 final.mu_F = mu_F;
 final.mu_CR = mu_CR;
 
-out = finishoutput(out, X, f, counteval, ...
+out = finishoutput(out, X, f, counteval, countiter, ...
 	'final', final, ...
 	'MF', mu_F, ...
 	'MCR', mu_CR);

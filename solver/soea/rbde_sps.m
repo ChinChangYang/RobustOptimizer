@@ -1,6 +1,6 @@
 function [xmin, fmin, out] = rbde_sps(fitfun, lb, ub, maxfunevals, options)
 % RBDE_SPS Differential evolution with rank-based mutation and SPS
-% Framework 
+% Framework
 % RBDE_SPS(fitfun, lb, ub, maxfunevals) minimize the function fitfun in
 % box constraints [lb, ub] with the maximal function evaluations
 % maxfunevals.
@@ -20,6 +20,7 @@ defaultOptions.ftarget = -Inf;
 defaultOptions.TolStagnationIteration = Inf;
 defaultOptions.initial.X = [];
 defaultOptions.initial.f = [];
+defaultOptions.ConstraintHandling = 'Interpolation';
 
 options = setdefoptions(options, defaultOptions);
 F = options.F;
@@ -30,6 +31,12 @@ isDisplayIter = strcmp(options.Display, 'iter');
 RecordPoint = max(1, floor(options.RecordPoint));
 ftarget = options.ftarget;
 TolStagnationIteration = options.TolStagnationIteration;
+
+if isequal(options.ConstraintHandling, 'Interpolation')
+	interpolation = true;
+else
+	interpolation = false;
+end
 
 D = numel(lb);
 
@@ -42,7 +49,7 @@ else
 	fx = [];
 end
 
-if isempty(X)	
+if isempty(X)
 	NP = options.NP;
 else
 	[~, NP] = size(X);
@@ -108,11 +115,11 @@ while true
 	% Termination conditions
 	outofmaxfunevals = counteval > maxfunevals - NP;
 	reachftarget = min(fx) <= ftarget;
-	stagnation = countStagnation >= TolStagnationIteration;	
+	stagnation = countStagnation >= TolStagnationIteration;
 	if outofmaxfunevals || reachftarget || stagnation
 		break;
 	end
-		
+	
 	% Mutation
 	for i = 1 : NP
 		% Generate r1
@@ -137,7 +144,7 @@ while true
 			V(:, i) = X(:, r1) + F * (X(:, r2) - X(:, r3));
 		else
 			V(:, i) = SP(:, sortidxfSP(r1)) + ...
-				F * (SP(:, sortidxfSP(r2)) - SP(:, sortidxfSP(r3)));			
+				F * (SP(:, sortidxfSP(r2)) - SP(:, sortidxfSP(r3)));
 		end
 	end
 	
@@ -164,22 +171,24 @@ while true
 		end
 	end
 	
-	% Correction for outside of boundaries
-	for i = 1 : NP
-		if FC(i) <= Q
-			for j = 1 : D
-				if U(j, i) < lb(j)
-					U(j, i) = 0.5 * (lb(j) + X(j, i));
-				elseif U(j, i) > ub(j)
-					U(j, i) = 0.5 * (ub(j) + X(j, i));
+	if interpolation
+		% Correction for outside of boundaries
+		for i = 1 : NP
+			if FC(i) <= Q
+				for j = 1 : D
+					if U(j, i) < lb(j)
+						U(j, i) = 0.5 * (lb(j) + X(j, i));
+					elseif U(j, i) > ub(j)
+						U(j, i) = 0.5 * (ub(j) + X(j, i));
+					end
 				end
-			end
-		else
-			for j = 1 : D
-				if U(j, i) < lb(j)
-					U(j, i) = 0.5 * (lb(j) + SP(j, i));
-				elseif U(j, i) > ub(j)
-					U(j, i) = 0.5 * (ub(j) + SP(j, i));
+			else
+				for j = 1 : D
+					if U(j, i) < lb(j)
+						U(j, i) = 0.5 * (lb(j) + SP(j, i));
+					elseif U(j, i) > ub(j)
+						U(j, i) = 0.5 * (ub(j) + SP(j, i));
+					end
 				end
 			end
 		end
@@ -199,7 +208,7 @@ while true
 	
 	% Selection
 	FailedIteration = true;
-	for i = 1 : NP		
+	for i = 1 : NP
 		if fu(i) < fx(i)
 			X(:, i)		= U(:, i);
 			fx(i)		= fu(i);
@@ -231,7 +240,7 @@ while true
 		countStagnation = countStagnation + 1;
 	else
 		countStagnation = 0;
-	end	
+	end
 end
 
 [fmin, minindex] = min(fx);
