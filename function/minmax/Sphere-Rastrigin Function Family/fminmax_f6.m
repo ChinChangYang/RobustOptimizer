@@ -15,6 +15,6 @@ y = y - shift;
 X = x;
 Y = x + y;
 a = 1;
-b = -2;
+b = -1;
 f = a * sphere(X) + b * rastrigin(Y);
 end
