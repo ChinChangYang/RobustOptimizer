@@ -1,13 +1,14 @@
-function [xbest1, xbest2, fbest, out] = mmjade_c(fitfun, ...
+function [xbest1, xbest2, fbest, out] = mmjade_pce(fitfun, ...
 	maxfunevals, lb1, ub1, lb2, ub2, options1, options2)
-% MMJADE_C Sequential JADE with finding constraint boundary
-% MMJADE_C(fitfun, maxfunevals1, lb1, ub1, lb2, ub2) minimizes the
+% MMJADE_PCE Sequential JADE with propagation, constraint activation, and
+% inner level evolution.
+% MMJADE_PCE(fitfun, maxfunevals1, lb1, ub1, lb2, ub2) minimizes the
 % function fitfun1 associated with a maximizer among box limitations [lb1,
 % ub1] of minimizers and [lb2, ub2] of maximizers for the maximal function
 % evaluations maxfunevals1.
-% MMJADE_C(..., options1) minimizes the function with the given
+% MMJADE_PCE(..., options1) minimizes the function with the given
 % options Options1 for the 1st layer.
-% MMJADE_C(..., options1, options2) minimize the function with the
+% MMJADE_PCE(..., options1, options2) minimize the function with the
 % given options Options2 for the 2nd layer.
 
 % Check number of input arguments
@@ -24,7 +25,7 @@ D1 = numel(lb1);
 D2 = numel(lb2);
 
 % Default options for Layer 1
-defaultOptions1.dimensionFactor = 10;
+defaultOptions1.NP = 10;
 defaultOptions1.F = 0.9;
 defaultOptions1.CR = 0.5;
 defaultOptions1.delta_F = 0.1;
@@ -33,8 +34,6 @@ defaultOptions1.p = 0.05;
 defaultOptions1.w = 0.1;
 defaultOptions1.Display = 'off';
 defaultOptions1.RecordPoint = 100;
-defaultOptions1.TolX = 0;
-defaultOptions1.TolFun = 0;
 defaultOptions1.TolStagnationIteration = 20;
 defaultOptions1.InnerSolver = 'jadebin';
 defaultOptions1.initial.X = [];
@@ -42,69 +41,78 @@ defaultOptions1.initial.f = [];
 defaultOptions1.initial.A = [];
 defaultOptions1.initial.mu_F = [];
 defaultOptions1.initial.mu_CR = [];
-defaultOptions1.initial.cm = [];
-defaultOptions1.initial.nc = [];
+defaultOptions1.initial.psai = [];
 defaultOptions1.initial.innerState = [];
 
-defaultOptions1.TolCon = 1e-6;
 defaultOptions1.nonlcon = [];
 defaultOptions1.innerMaxIter = 200;
 defaultOptions1.migrateFactor = 0.7;
+defaultOptions1.ConstraintHandling = 'EpsilonMethod';
+defaultOptions1.EpsilonValue = 0;
+defaultOptions1.EarlyStop = 'auto';
 
 options1 = setdefoptions(options1, defaultOptions1);
 
 % Default options for Layer 2
-defaultOptions2.dimensionFactor = 10;
+defaultOptions2.NP = 10;
 defaultOptions2.F = 0.9;
 defaultOptions2.CR = 0.5;
 defaultOptions2.Display = 'off';
 defaultOptions2.RecordPoint = 0;
-defaultOptions2.TolFun = 0;
-defaultOptions2.TolX = 0;
+defaultOptions2.ConstraintHandling = 'EpsilonMethod';
+defaultOptions2.EpsilonValue = 0;
+defaultOptions2.EarlyStop = 'auto';
 options2 = setdefoptions(options2, defaultOptions2);
 
 % Initialize algorithmic variables
-dimensionFactor = max(1, options1.dimensionFactor);
 delta_F = options1.delta_F;
 delta_CR = options1.delta_CR;
 p = options1.p;
 w = options1.w;
 isDisplayIter = strcmp(options1.Display, 'iter');
 RecordPoint = max(0, floor(options1.RecordPoint));
-TolFun = options1.TolFun;
-TolX = options1.TolX;
 TolStagnationIteration = options1.TolStagnationIteration;
 innerSolver = options1.InnerSolver;
-TolCon = options1.TolCon;
 nonlcon = options1.nonlcon;
 innerMaxIter = options1.innerMaxIter;
 migrateFactor = options1.migrateFactor;
 
+EpsilonValue = options1.EpsilonValue;
+if ~isempty(strfind(options1.ConstraintHandling, 'EpsilonMethod'))
+	EpsilonMethod = true;
+else
+	EpsilonMethod = false;
+end
+
+if ~isempty(strfind(options1.EarlyStop, 'auto'))
+	EarlyStop = true;
+else
+	EarlyStop = false;
+end
+
 if ~isempty(options1.initial)
 	options1.initial = setdefoptions(options1.initial, defaultOptions1.initial);
 	X = options1.initial.X;
-	f = options1.initial.f;
+	fx = options1.initial.f;
 	A = options1.initial.A;
 	mu_F = options1.initial.mu_F;
 	mu_CR = options1.initial.mu_CR;
-	cm = options1.initial.cm;
-	nc = options1.initial.nc;
 	innerState = options1.initial.innerState;
+	psai_x = options1.initial.psai;
 else
 	X = [];
-	f = [];
+	fx = [];
 	A = [];
 	mu_F = [];
 	mu_CR = [];
-	cm = [];
-	nc = [];
 	innerState = [];
+	psai_x = [];
 end
 
 existInnerState = ~isempty(innerState);
 
-NP1 = ceil(dimensionFactor * D1);
-NP2 = ceil(options2.dimensionFactor * D2);
+NP1 = options1.NP;
+NP2 = options2.NP;
 
 % Initialize contour data
 if isDisplayIter
@@ -161,8 +169,7 @@ innerOutX = cell(1, NP1);
 innerOutU = cell(1, NP1);
 innerOutXC = cell(1, NP1);
 innerOutUC = cell(1, NP1);
-cm_u = zeros(1, NP1);
-nc_u = zeros(1, NP1);
+psai_u = zeros(1, NP1);
 
 out = initoutput(RecordPoint, D1, NP1, maxfunevals, ...
 	'innerFstd', ...
@@ -174,8 +181,8 @@ out = initoutput(RecordPoint, D1, NP1, maxfunevals, ...
 	'mu_CR');
 
 % Evaluation
-if isempty(f)
-	f = zeros(1, NP1);
+if isempty(fx)
+	fx = zeros(1, NP1);
 	innerMaxfunevalsX = innerMaxIter * NP2;
 	
 	parfor i = 1 : NP1
@@ -195,7 +202,7 @@ if isempty(f)
 			feval(innerSolver, innerFitfun, ...
 			lb2, ub2, innerMaxfunevalsX, optionsX2i);
 		
-		f(i) = -innerFbest;
+		fx(i) = -innerFbest;
 		innerState{i} = innerOutX{i}.final;
 	end
 	
@@ -205,59 +212,41 @@ if isempty(f)
 	end
 end
 
-% Constraint violation measure
-if isempty(cm) || isempty(nc)
-	cm = zeros(1, NP1);
-	nc = zeros(1, NP1);
-	
-	for i = 1 : NP1
-		clb = lb1 - X(:, i);
-		cub = X(:, i) - ub1;
-		cm(i) = sum(clb(clb > 0)) + sum(cub(cub > 0));
-		nc(i) = sum(clb > 0) + sum(cub > 0);
-	end
-	
-	for i = 1 : NP1
-		clb = lb2 - innerXbest(:, i);
-		cub = innerXbest(:, i) - ub2;
-		cm(i) = cm(i) + sum(clb(clb > 0)) + sum(cub(cub > 0));
-		nc(i) = nc(i) + sum(clb > 0) + sum(cub > 0);
-	end
-	
-	if ~isempty(nonlcon)
-		for i = 1 : NP1
+% Constraint violation
+if isempty(psai_x) && EpsilonMethod
+	psai_x = zeros(1, NP1);
+	for i = 1 : NP1		
+		clbx1 = lb1 - X(:, i);
+		cubx1 = X(:, i) - ub1;
+		psai_x(i) = sum(clbx1(clbx1 > 0)) + sum(cubx1(cubx1 > 0));
+				
+		clbx2 = lb2 - innerXbest(:, i);
+		cubx2 = innerXbest(:, i) - ub2;
+		psai_x(i) = psai_x(i) + sum(clbx2(clbx2 > 0)) + sum(cubx2(cubx2 > 0));
+		
+		if ~isempty(nonlcon)			
 			[cx, ceqx] = feval(nonlcon, X(:, i), innerXbest(:, i));
 			countcon = countcon + 1;
-			cm(i) = cm(i) + sum(cx(cx > 0)) + sum(ceqx(ceqx > 0));
-			nc(i) = nc(i) + sum(cx > 0) + sum(ceqx > 0);
+			psai_x(i) = psai_x(i) + sum(cx(cx > 0)) + sum(ceqx(ceqx > 0));
 		end
 	end
 end
 
 % Sort
-pf = zeros(1, NP1);
-nf = f;
-nf(isinf(nf)) = [];
-nfmax = max(nf);
-nfmin = min(nf);
-cmmax = max(cm);
-cmmin = min(cm);
-
-for i = 1 : NP1
-	if nc(i) == 0
-		pf(i) = (f(i) - nfmin) / (nfmax - nfmin + eps);
-	else
-		pf(i) = nc(i) + (cm(i) - cmmin) / (cmmax - cmmin + eps);
-	end
+if ~EpsilonMethod
+	[fx, fidx] = sort(fx);
+	X = X(:, fidx);
+	innerXbest = innerXbest(:, fidx);
+	innerState = innerState(fidx);
+else
+	PsaiFx = [psai_x', fx'];
+	[~, SortingIndex] = sortrows(PsaiFx);
+	X = X(:, SortingIndex);
+	fx = fx(SortingIndex);
+	innerXbest = innerXbest(:, SortingIndex);
+	innerState = innerState(SortingIndex);
+	psai_x = psai_x(SortingIndex);
 end
-
-[pf, pfidx] = sort(pf);
-f = f(pfidx);
-X = X(:, pfidx);
-innerXbest = innerXbest(:, pfidx);
-innerState = innerState(pfidx);
-cm = cm(pfidx);
-nc = nc(pfidx);
 
 % mu_F
 if isempty(mu_F)
@@ -271,16 +260,16 @@ end
 
 % Display
 if isDisplayIter
-	if all(isinf(f))
+	if all(isinf(fx))
 		dispconitermsg([X; innerXbest], [U; innerUbest], ...
-			cm, countiter, ...
+			psai_x, countiter, ...
 			XX, YY, ZZ, CC, 'counteval', counteval, ...
 			'successRate', successRate, ...
 			'mu_F', mu_F, ...
 			'mu_CR', mu_CR);
 	else
 		dispconitermsg([X; innerXbest], [U; innerUbest], ...
-			f(~isinf(f)), countiter, ...
+			fx(~isinf(fx)), countiter, ...
 			XX, YY, ZZ, CC, 'counteval', counteval, ...
 			'successRate', successRate, ...
 			'mu_F', mu_F, ...
@@ -291,7 +280,7 @@ if isDisplayIter
 end
 
 % Record minimal function values
-out = updateoutput(out, X, f, counteval + countcon, ...
+out = updateoutput(out, X, fx, counteval + countcon, countiter, ...
 	'innerFstd', computeInnerFstd(innerState), ...
 	'innerMeanXstd', computeInnerMeanXstd(innerState), ...
 	'successRate', successRate, ...
@@ -303,16 +292,25 @@ out = updateoutput(out, X, f, counteval + countcon, ...
 countiter = countiter + 1;
 
 while true
-	% Termination conditions
+	% Termination conditions	
 	outofmaxfunevals = counteval + countcon >= maxfunevals;
-	fitnessconvergence = isConverged(f, TolFun) && isConverged(cm, TolCon);
-	solutionconvergence = isConverged(X, TolX);
-	stagnation = countStagnation >= TolStagnationIteration;
-	
-	% Convergence conditions
-	if outofmaxfunevals || fitnessconvergence || solutionconvergence ...
-			|| stagnation
-		break;
+	if ~EarlyStop
+		if outofmaxfunevals
+			break;
+		end
+	else		
+		TolX = 10 * eps(mean(X(:)));
+		solutionconvergence = std(X(:)) <= TolX;
+		TolFun = 10 * eps(mean(fx));
+		functionvalueconvergence = std(fx(:)) <= TolFun;
+		stagnation = countStagnation >= TolStagnationIteration;
+		
+		if outofmaxfunevals || ...
+				solutionconvergence || ...
+				functionvalueconvergence || ...
+				stagnation
+			break;
+		end
 	end
 	
 	% Scaling factor and crossover rate
@@ -480,7 +478,7 @@ while true
 			innerMaxfunevalsX, optionsX2i);
 		
 		X_Converged_FEs(i) = innerOutX{i}.fes(end);
-		f(i) = -innerFbest;
+		fx(i) = -innerFbest;
 		
 		% Compute fui
 		fitfunU2i = @(U2) -feval(fitfun, U(:, i), U2);
@@ -506,99 +504,83 @@ while true
 		countcon = countcon + innerOutX{i}.countcon;
 		counteval = counteval + innerOutU{i}.fes(end);
 		countcon = countcon + innerOutU{i}.countcon;
-	end
-	
-	% Constraint violation measure
-	for i = 1 : NP1
-		clb = lb1 - X(:, i);
-		cub = X(:, i) - ub1;
-		cm(i) = sum(clb(clb > 0)) + sum(cub(cub > 0));
-		nc(i) = sum(clb > 0) + sum(cub > 0);
-		
-		clb = lb1 - U(:, i);
-		cub = U(:, i) - ub1;
-		cm_u(i) = sum(clb(clb > 0)) + sum(cub(cub > 0));
-		nc_u(i) = sum(clb > 0) + sum(cub > 0);
-	end
-	
-	for i = 1 : NP1
-		clb = lb2 - innerXbest(:, i);
-		cub = innerXbest(:, i) - ub2;
-		cm(i) = cm(i) + sum(clb(clb > 0)) + sum(cub(cub > 0));
-		nc(i) = nc(i) + sum(clb > 0) + sum(cub > 0);
-				
-		clb = lb2 - innerUbest(:, i);
-		cub = innerUbest(:, i) - ub2;
-		cm_u(i) = cm_u(i) + sum(clb(clb > 0)) + sum(cub(cub > 0));
-		nc_u(i) = nc_u(i) + sum(clb > 0) + sum(cub > 0);
-	end
-	
-	if ~isempty(nonlcon)
+	end	
+
+	% Constraint violation
+	if EpsilonMethod
 		for i = 1 : NP1
-			[cx, ceqx] = feval(nonlcon, X(:, i), innerXbest(:, i));
-			countcon = countcon + 1;
-			cm(i) = cm(i) + sum(cx(cx > 0)) + sum(ceqx(ceqx > 0));
-			nc(i) = nc(i) + sum(cx > 0) + sum(ceqx > 0);
+			clbu1 = lb1 - U(:, i);
+			cubu1 = U(:, i) - ub1;
+			psai_u(i) = sum(clbu1(clbu1 > 0)) + sum(cubu1(cubu1 > 0));
 			
-			[cu, cequ] = feval(nonlcon, U(:, i), innerUbest(:, i));
-			countcon = countcon + 1;
-			cm_u(i) = cm_u(i) + sum(cu(cu > 0)) + sum(cequ(cequ > 0));
-			nc_u(i) = nc_u(i) + sum(cu > 0) + sum(cequ > 0);
+			clbu2 = lb2 - innerUbest(:, i);
+			cubu2 = innerUbest(:, i) - ub2;
+			psai_u(i) = psai_u(i) + sum(clbu2(clbu2 > 0)) + sum(cubu2(cubu2 > 0));
+			
+			if ~isempty(nonlcon)
+				[cu, cequ] = feval(nonlcon, U(:, i), innerUbest(:, i));
+				countcon = countcon + 1;
+				psai_u(i) = psai_u(i) + sum(cu(cu > 0)) + sum(cequ(cequ > 0));
+			end
 		end
 	end
 	
 	% Replacement
 	successRate = 0;
 	FailedIteration = true;
-	for i = 1 : NP1
-		if nc(i) == 0 && nc_u(i) == 0
-			if fu(i) < f(i)
-				u_selected = true;
+	if ~EpsilonMethod
+		for i = 1 : NP1
+			if fu(i) < fx(i)
+				fx(i) = fu(i);
+				X(:, i) = U(:, i);
+				A(:, NP1 + Succ_Counter + 1) = U(:, i);
+				innerXbest(:, i) = innerUbest(:, i);
+				innerState{i} = innerOutU{i}.final;
+				successRate = successRate + 1 / NP1;
+				S_F(Succ_Counter + 1) = F(i);
+				S_CR(Succ_Counter + 1) = CR(i);
+				Succ_Counter = Succ_Counter + 1;
+				FailedIteration = false;
 			else
-				u_selected = false;
-			end
-		elseif nc(i) > nc_u(i)
-			u_selected = true;
-		elseif nc(i) < nc_u(i)
-			u_selected = false;
-		else % nvc(i) == nvc_u(i) && nvc(i) ~= 0 && nvc_u(i) ~= 0
-			if cm(i) > cm_u(i)
-				u_selected = true;
-			else
-				u_selected = false;
+				innerState{i} = innerOutX{i}.final;
 			end
 		end
-		
-		if u_selected
-			cm(i) = cm_u(i);
-			nc(i) = nc_u(i);
-			f(i) = fu(i);
-			X(:, i) = U(:, i);
-			A(:, NP1 + Succ_Counter + 1) = U(:, i);
-			innerXbest(:, i) = innerUbest(:, i);
-			innerState{i} = innerOutU{i}.final;
-			successRate = successRate + 1 / NP1;
-			S_F(Succ_Counter + 1) = F(i);
-			S_CR(Succ_Counter + 1) = CR(i);
-			Succ_Counter = Succ_Counter + 1;
-			FailedIteration = false;
-		else
-			innerState{i} = innerOutX{i}.final;
+	else
+		for i = 1 : NP1
+			X_AND_U_IN_EPSILON = psai_u(i) < EpsilonValue && psai_x(i) < EpsilonValue;
+			X_AND_U_EQUAL_EPSILON = psai_u(i) == psai_x(i);
+			
+			if ((X_AND_U_IN_EPSILON || X_AND_U_EQUAL_EPSILON) && fu(i) < fx(i)) || ...
+					(~X_AND_U_IN_EPSILON && psai_u(i) < psai_x(i))
+				fx(i) = fu(i);
+				X(:, i) = U(:, i);
+				A(:, NP1 + Succ_Counter + 1) = U(:, i);
+				innerXbest(:, i) = innerUbest(:, i);
+				innerState{i} = innerOutU{i}.final;
+				successRate = successRate + 1 / NP1;
+				S_F(Succ_Counter + 1) = F(i);
+				S_CR(Succ_Counter + 1) = CR(i);
+				Succ_Counter = Succ_Counter + 1;
+				FailedIteration = false;
+				psai_x(i)	= psai_u(i);
+			else
+				innerState{i} = innerOutX{i}.final;
+			end
 		end
 	end
 	
 	% Display
 	if isDisplayIter
-		if all(isinf(f))
+		if all(isinf(fx))
 			dispconitermsg([X; innerXbest], [U; innerUbest], ...
-				cm, countiter, ...
+				psai_x, countiter, ...
 				XX, YY, ZZ, CC, 'counteval', counteval, ...
 				'successRate', successRate, ...
 				'mu_F', mu_F, ...
 				'mu_CR', mu_CR);
 		else
 			dispconitermsg([X; innerXbest], [U; innerUbest], ...
-				f(~isinf(f)), countiter, ...
+				fx(~isinf(fx)), countiter, ...
 				XX, YY, ZZ, CC, 'counteval', counteval, ...
 				'successRate', successRate, ...
 				'mu_F', mu_F, ...
@@ -621,31 +603,23 @@ while true
 	end
 	
 	% Sort
-	nf = f;
-	nf(isinf(nf)) = [];
-	nfmax = max(nf);
-	nfmin = min(nf);
-	cmmax = max(cm);
-	cmmin = min(cm);
-	
-	for i = 1 : NP1
-		if nc(i) == 0
-			pf(i) = (f(i) - nfmin) / (nfmax - nfmin + eps);
-		else
-			pf(i) = nc(i) + (cm(i) - cmmin) / (cmmax - cmmin + eps);
-		end
+	if ~EpsilonMethod
+		[fx, fidx] = sort(fx);
+		X = X(:, fidx);
+		innerXbest = innerXbest(:, fidx);
+		innerState = innerState(fidx);
+	else
+		PsaiFx = [psai_x', fx'];
+		[~, SortingIndex] = sortrows(PsaiFx);
+		X = X(:, SortingIndex);
+		fx = fx(SortingIndex);
+		innerXbest = innerXbest(:, SortingIndex);
+		innerState = innerState(SortingIndex);
+		psai_x = psai_x(SortingIndex);
 	end
 	
-	[pf, pfidx] = sort(pf);
-	cm = cm(pfidx);
-	nc = nc(pfidx);
-	f = f(pfidx);
-	X = X(:, pfidx);
-	innerXbest = innerXbest(:, pfidx);
-	innerState = innerState(pfidx);
-	
 	% Record
-	out = updateoutput(out, X, f, counteval + countcon, ...
+	out = updateoutput(out, X, fx, counteval + countcon, countiter, ...
 		'innerFstd', computeInnerFstd(innerState), ...
 		'innerMeanXstd', computeInnerMeanXstd(innerState), ...
 		'successRate', successRate, ...
@@ -667,16 +641,16 @@ end
 
 xbest1 = X(:, 1);
 xbest2 = innerState{1}.X(:, 1);
-fbest = f(1);
+fbest = fx(1);
 
 final.A = A;
 final.mu_F = mu_F;
 final.mu_CR = mu_CR;
-final.cm = cm;
-final.nc = nc;
+final.psai = psai_x;
 final.innerState = innerState;
 
-out = finishoutput(out, X, f, counteval + countcon, 'final', final, ...
+out = finishoutput(out, X, fx, counteval + countcon, countiter, ...
+	'final', final, ...
 	'innerFstd', computeInnerFstd(innerState), ...
 	'innerMeanXstd', computeInnerMeanXstd(innerState), ...
 	'successRate', successRate, ...

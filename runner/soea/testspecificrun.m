@@ -21,6 +21,7 @@ load('InitialX.mat');
 % solver = 'shade_sps';
 % solver = 'shade_sps_eig';
 solver = 'shadeeig';
+% solver = 'deglbin';
 fitfun = 'cec14_f1';
 D = 30;
 maxfunevals = D * 1e4;
@@ -34,6 +35,7 @@ solverOptions.RecordPoint = 21;
 solverOptions.Noise = false;
 % solverOptions.ConstraintHandling = 'none';
 solverOptions.ConstraintHandling = 'Interpolation';
+% solverOptions.ConstraintHandling = 'EpsilonMethod';
 solverOptions.initial.X = eval(sprintf('XD%dNP%d', ...
 	D, ...
 	solverOptions.NP));

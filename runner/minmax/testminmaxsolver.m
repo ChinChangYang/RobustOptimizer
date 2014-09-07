@@ -7,29 +7,38 @@ end
 startTime = tic;
 close all;
 rng(1, 'twister');
-solver = 'minmaxdegl';
+% solver = 'minmaxdegl';
+% solver = 'mmjade_pce';
+% solver = 'mmdeb1b_pce';
+solver = 'mmder1b_pce';
+% fitfun = 'sainz_f1';
+% nonlcon = 'sainz_c1';
+% fitfun = 'sainz_f2';
+% nonlcon = 'sainz_c2';
 fitfun = 'lu_f1';
 nonlcon = 'lu_c1';
 D_Min = 1;
 D_Max = 1;
 D = D_Min + D_Max;
-maxfunevals = 1e6;
+maxfunevals = 1e7;
 solverOptions1.dimensionFactor = 30;
+solverOptions1.NP = 30;
 solverOptions1.F = 0.7;
 solverOptions1.CR = 0.9;
-solverOptions1.TolX = 0;
-solverOptions1.TolFun = 0;
 solverOptions1.Display = 'iter';
 solverOptions1.RecordPoint = 1000;
 solverOptions1.nonlcon = nonlcon;
 solverOptions1.innerMaxIter = 200;
 solverOptions1.migrateFactor = 0.7;
+solverOptions1.ConstraintHandling = 'EpsilonMethod';
+solverOptions1.EarlyStop = 'auto';
 % solverOptions1.InnerSolver = innerSolver;
-solverOptions2.dimensionFactor = 30;
+solverOptions2.NP = 30;
 solverOptions2.F = 0.7;
 solverOptions2.CR = 0.9;
-solverOptions2.TolX = 0;
-solverOptions2.TolFun = 0;
+solverOptions2.TolStagnationIteration = 20;
+solverOptions2.ConstraintHandling = 'EpsilonMethod';
+solverOptions2.EarlyStop = 'auto';
 % lb1 = -3.14 * ones(D_Min, 1);
 % ub1 = 3.14 * ones(D_Min, 1);
 % lb2 = -3.14 * ones(D_Max, 1);
@@ -114,46 +123,59 @@ for i = 1 : numel(out.xstd(:, 1))
 end
 xlabel('FEs');
 title('St. D. of X solutions');
-figure;
-hold off;
-semilogy(out.fes, out.distancemin, 'r');
-hold on;
-semilogy(out.fes, out.distancemax, 'r');
-semilogy(out.fes, out.distancemean, 'b');
-semilogy(out.fes, out.distancemedian, 'g');
-xlabel('FEs');
-title('Distances between each pair of X');
-figure;
-hold off;
-semilogy(out.fes, out.cond);
-xlabel('FEs');
-title('Condition number');
-figure;
-hold off;
-semilogy(out.fes, out.innerFstd);
-xlabel('FEs');
-title('Std. f in inner states');
-figure;
-hold off;
-semilogy(out.fes, out.innerMeanXstd);
-xlabel('FEs');
-title('Mean of std. X in inner states');
-
-figure;
-NP = D * solverOptions1.dimensionFactor;
-Gmax = maxfunevals / NP;
-alternative_angle = out.angle;
-alternative_angle(out.angle > pi/4) = out.angle(out.angle > pi/4) - pi/2;
-if std(out.angle) < std(alternative_angle)
-	semilogx(out.fes / NP, out.angle / pi * 180, 'k');
-	axis([0, Gmax, 0, 90]);
-else
-	semilogx(out.fes / NP, alternative_angle / pi * 180, 'k');
-	axis([0, Gmax, -45, 45]);
+if isfield(out, 'distancemin')
+	figure;
+	hold off;
+	semilogy(out.fes, out.distancemin, 'r');
+	hold on;
+	semilogy(out.fes, out.distancemax, 'r');
+	semilogy(out.fes, out.distancemean, 'b');
+	semilogy(out.fes, out.distancemedian, 'g');
+	xlabel('FEs');
+	title('Distances between each pair of X');
 end
-xlabel('Generation');
-ylabel('Angle (degree)');
-title('Angle between the natural basis and the eigenvector basis');
+
+if isfield(out, 'cond');
+	figure;
+	hold off;
+	semilogy(out.fes, out.cond);
+	xlabel('FEs');
+	title('Condition number');
+end
+
+if isfield(out, 'innerFstd');
+	figure;
+	hold off;
+	semilogy(out.fes, out.innerFstd);
+	xlabel('FEs');
+	title('Std. f in inner states');
+end
+
+if isfield(out, 'innerMeanXstd')
+	figure;
+	hold off;
+	semilogy(out.fes, out.innerMeanXstd);
+	xlabel('FEs');
+	title('Mean of std. X in inner states');
+end
+
+if isfield(out, 'angle')
+	figure;
+	NP = D * solverOptions1.dimensionFactor;
+	Gmax = maxfunevals / NP;
+	alternative_angle = out.angle;
+	alternative_angle(out.angle > pi/4) = out.angle(out.angle > pi/4) - pi/2;
+	if std(out.angle) < std(alternative_angle)
+		semilogx(out.fes / NP, out.angle / pi * 180, 'k');
+		axis([0, Gmax, 0, 90]);
+	else
+		semilogx(out.fes / NP, alternative_angle / pi * 180, 'k');
+		axis([0, Gmax, -45, 45]);
+	end
+	xlabel('Generation');
+	ylabel('Angle (degree)');
+	title('Angle between the natural basis and the eigenvector basis');
+end
 
 if isfield(out, 'mu_F')
 	figure;
