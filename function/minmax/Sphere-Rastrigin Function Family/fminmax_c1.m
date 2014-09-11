@@ -1,10 +1,4 @@
 function [c, ceq] = fminmax_c1(x, y)
-% Sphere-sphere function (Type 1)
-% Global optimum value: f(0.1, 0.1) = 0
-%
-% Property
-% * xy-correlation: No
-
-c = 0;
-ceq = 0;
+c = x(1) - x(2);
+ceq = abs(y(1) - y(2));
 end

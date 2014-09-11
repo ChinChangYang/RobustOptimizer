@@ -386,7 +386,11 @@ end
 fmin = fx(1);
 xmin = X(:, 1);
 
+final.w = w;
+final.psai = psai_x;
+
 out = finishoutput(out, X, fx, counteval, countiter, ...
 	'countcon', countcon, ...
+	'final', final, ...
 	'FC', zeros(NP, 1));
 end

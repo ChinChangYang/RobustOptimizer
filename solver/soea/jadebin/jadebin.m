@@ -422,6 +422,7 @@ xmin = X(:, 1);
 final.A = A;
 final.mu_F = mu_F;
 final.mu_CR = mu_CR;
+final.psai = psai_x;
 
 out = finishoutput(out, X, fx, counteval, countiter, ...
 	'countcon', countcon, ...
