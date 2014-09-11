@@ -52,6 +52,7 @@ defaultOptions2.Display = 'off';
 defaultOptions2.RecordPoint = 0;
 defaultOptions2.TolFun = 0;
 defaultOptions2.TolX = 0;
+defaultOptions2.ConstraintHandling = 'EpsilonMethod';
 options2 = setdefoptions(options2, defaultOptions2);
 
 % Initialize algorithmic variables
