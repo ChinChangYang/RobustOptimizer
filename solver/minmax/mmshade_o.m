@@ -1,16 +1,14 @@
-function [xbest1, xbest2, fbest, out] = mmjade_o(fitfun, ...
+function [xbest1, xbest2, fbest, out] = mmshade_o(fitfun, ...
 	maxfunevals, lb1, ub1, lb2, ub2, options1, options2)
-% MMJADE_O Sequential Min-max JADE
-% MMJADE_O(fitfun, maxfunevals1, lb1, ub1, lb2, ub2) minimizes the
+% MMDEB1B_O Sequential Min-Max SHADE (origin)
+% MMDEB1B_O(fitfun, maxfunevals1, lb1, ub1, lb2, ub2) minimizes the
 % function fitfun1 associated with a maximizer among box limitations [lb1,
 % ub1] of minimizers and [lb2, ub2] of maximizers for the maximal function
 % evaluations maxfunevals1.
-% MMJADE_O(..., options1) minimizes the function with the given
+% MMDEB1B_O(..., options1) minimizes the function with the given
 % options Options1 for the 1st layer.
-% MMJADE_O(..., options1, options2) minimize the function with the
+% MMDEB1B_O(..., options1, options2) minimize the function with the
 % given options Options2 for the 2nd layer.
-
-% Check number of input arguments
 if nargin <= 6
 	options1 = [];
 end
@@ -27,19 +25,15 @@ D2 = numel(lb2);
 defaultOptions1.NP = 10;
 defaultOptions1.F = 0.9;
 defaultOptions1.CR = 0.5;
-defaultOptions1.delta_F = 0.1;
-defaultOptions1.delta_CR = 0.1;
-defaultOptions1.p = 0.05;
-defaultOptions1.w = 0.1;
 defaultOptions1.Display = 'off';
 defaultOptions1.RecordPoint = 100;
 defaultOptions1.TolStagnationIteration = 20;
-defaultOptions1.InnerSolver = 'jadebin';
+defaultOptions1.InnerSolver = 'shade';
 defaultOptions1.initial.X = [];
 defaultOptions1.initial.f = [];
 defaultOptions1.initial.A = [];
-defaultOptions1.initial.mu_F = [];
-defaultOptions1.initial.mu_CR = [];
+defaultOptions1.initial.MCR = [];
+defaultOptions1.initial.MF = [];
 defaultOptions1.initial.psai = [];
 defaultOptions1.initial.innerState = [];
 
@@ -64,10 +58,6 @@ defaultOptions2.EarlyStop = 'auto';
 options2 = setdefoptions(options2, defaultOptions2);
 
 % Initialize algorithmic variables
-delta_F = options1.delta_F;
-delta_CR = options1.delta_CR;
-p = options1.p;
-w = options1.w;
 isDisplayIter = strcmp(options1.Display, 'iter');
 RecordPoint = max(0, floor(options1.RecordPoint));
 TolStagnationIteration = options1.TolStagnationIteration;
@@ -94,16 +84,16 @@ if ~isempty(options1.initial)
 	X = options1.initial.X;
 	fx = options1.initial.f;
 	A = options1.initial.A;
-	mu_F = options1.initial.mu_F;
-	mu_CR = options1.initial.mu_CR;
+	MCR = options1.initial.MCR;
+	MF = options1.initial.MF;
 	innerState = options1.initial.innerState;
 	psai_x = options1.initial.psai;
 else
 	X = [];
 	fx = [];
 	A = [];
-	mu_F = [];
-	mu_CR = [];
+	MCR = [];
+	MF = [];
 	innerState = [];
 	psai_x = [];
 end
@@ -136,12 +126,6 @@ if isempty(X)
 	end
 end
 
-% Initialize archive
-if isempty(A)
-	A = zeros(D1, 2 * NP1);
-	A(:, 1 : NP1) = X;
-end
-
 % Initialize inner states
 if isempty(innerState)
 	innerState = cell(1, NP1);
@@ -162,22 +146,33 @@ innerUCbest = innerXbest;
 V = X;
 U = X;
 PX2 = zeros(D2, NP2, NP1);
-pbest_size = p * NP1;
 fu = zeros(1, NP1);
 innerOutX = cell(1, NP1);
 innerOutU = cell(1, NP1);
 innerOutXC = cell(1, NP1);
 innerOutUC = cell(1, NP1);
 psai_u = zeros(1, NP1);
+k = 1;
+r = zeros(1, NP1);
+p = zeros(1, NP1);
+pmin = 2 / NP1;
+A_size = 0;
+S_CR = zeros(1, NP1);	% Set of crossover rate
+S_F = zeros(1, NP1);		% Set of scaling factor
+S_df = zeros(1, NP1);	% Set of df
+rt = zeros(1, NP1);
+r1 = zeros(1, NP1);
+r2 = zeros(1, NP1);
+Chy = cauchyrnd(0, 0.1, NP1 + 10);
+iChy = 1;
+H = NP1;
 
 out = initoutput(RecordPoint, D1, NP1, maxfunevals, ...
 	'innerFstd', ...
 	'innerMeanXstd', ...
 	'successRate', ...
 	'X_Converged_FEs', ...
-	'U_Converged_FEs', ...
-	'mu_F', ...
-	'mu_CR');
+	'U_Converged_FEs');
 
 % Evaluation
 if isempty(fx)
@@ -248,13 +243,13 @@ else
 end
 
 % mu_F
-if isempty(mu_F)
-	mu_F = options1.F;
+if isempty(MF)
+	MF = options1.F * ones(H, 1);
 end
 
 % mu_CR
-if isempty(mu_CR)
-	mu_CR = options1.CR;
+if isempty(MCR)
+	MCR = options1.CR * ones(H, 1);
 end
 
 % Display
@@ -263,16 +258,12 @@ if isDisplayIter
 		dispconitermsg([X; innerXbest], [U; innerUbest], ...
 			psai_x, countiter, ...
 			XX, YY, ZZ, CC, 'counteval', counteval, ...
-			'successRate', successRate, ...
-			'mu_F', mu_F, ...
-			'mu_CR', mu_CR);
+			'successRate', successRate);
 	else
 		dispconitermsg([X; innerXbest], [U; innerUbest], ...
 			fx(~isinf(fx)), countiter, ...
 			XX, YY, ZZ, CC, 'counteval', counteval, ...
-			'successRate', successRate, ...
-			'mu_F', mu_F, ...
-			'mu_CR', mu_CR);
+			'successRate', successRate);
 	end
 	
 	display_inner_info(innerState);
@@ -284,14 +275,12 @@ out = updateoutput(out, X, fx, counteval + countcon, countiter, ...
 	'innerMeanXstd', computeInnerMeanXstd(innerState), ...
 	'successRate', successRate, ...
 	'X_Converged_FEs', mean(X_Converged_FEs), ...
-	'U_Converged_FEs', mean(U_Converged_FEs), ...
-	'mu_F', mu_F, ...
-	'mu_CR', mu_CR);
+	'U_Converged_FEs', mean(U_Converged_FEs));
 
 countiter = countiter + 1;
 
 while true
-	% Termination conditions	
+	% Termination conditions
 	outofmaxfunevals = counteval + countcon >= maxfunevals;
 	if ~EarlyStop
 		if outofmaxfunevals
@@ -312,85 +301,82 @@ while true
 		end
 	end
 	
-	% Scaling factor and crossover rate
-	S_CR = zeros(1, NP1);
-	CR = mu_CR + delta_CR * randn(1, NP1);
-	CR(CR > 1) = 1 - eps;
-	CR(CR < 0) = eps;
-	S_F = zeros(1, NP1);
-	F = cauchyrnd(mu_F, delta_F, NP1, 1);
-	F(F > 1) = 1 - eps - 0.01 * rand;
+	% Reset S
+	nS = 0;
 	
-	for retry = 1 : 3
-		if all(F > 0)
-			break;
-		end
-		
-		F(F <= 0) = cauchyrnd(mu_F, delta_F, sum(F <= 0), 1);
-		F(F > 1) = 1 - eps - 0.01 * rand;
+	% Crossover rates
+	CR = zeros(1, NP1);
+	
+	for i = 1 : NP1
+		r(i) = floor(1 + H * rand);
+		CR(i) = MCR(r(i)) + 0.1 * randn;
 	end
 	
-	F(F <= 0) = 0.01 * mu_F * (1 + rand);
+	CR(CR > 1) = 1;
+	CR(CR < 0) = 0;
 	
-	Succ_Counter = 0;
+	% Scaling factors
+	F = zeros(1, NP1);
+	for i = 1 : NP1
+		while F(i) <= 0
+			F(i) = MF(r(i)) + Chy(iChy);
+			if iChy < numel(Chy)
+				iChy = iChy + 1;
+			else
+				iChy = 1;
+			end
+		end
+		
+		if F(i) > 1
+			F(i) = 1;
+		end
+	end
+	
+	% pbest
+	for i = 1 : NP1
+		p(i) = pmin + rand * (0.2 - pmin);
+	end
+	
 	XA = [X, A];
+	
+	for i = 1 : NP1
+		rt(i) = i;
+		
+		% Generate r1
+		r1(i) = floor(1 + NP1 * rand);
+		while rt(i) == r1(i)
+			r1(i) = floor(1 + NP1 * rand);
+		end
+		
+		% Generate r2
+		r2(i) = floor(1 + (NP1 + A_size) * rand);
+		while rt(i) == r1(i) || r1(i) == r2(i)
+			r2(i) = floor(1 + (NP1 + A_size) * rand);
+		end
+	end
 	
 	% Mutation
 	for i = 1 : NP1
-		% Try generating V within bounds
-		for retry_within_bounds = 1 : NP1
-			
-			% Generate pbest_idx
-			for retry = 1 : 3
-				pbest_idx = max(1, ceil(rand * pbest_size));
-				if ~all(X(:, pbest_idx) == X(:, i))
-					break;
-				end
-			end
-			
-			% Generate r1
-			for retry = 1 : NP1
-				r1 = floor(1 + NP1 * rand);
-				if i ~= r1
-					break;
-				end
-			end
-			
-			% Generate r2
-			for retry = 1 : NP1 * NP1
-				r2 = floor(1 + 2 * NP1 * rand);
-				if ~(all(X(:, i) == XA(:, r2)) || all(X(:, r1) == XA(:, r2)))
-					break;
-				end
-			end
-			
-			% Generate Vi
-			V(:, i) = X(:, pbest_idx) + F(i) .* ...
-				(X(:, i) - X(:, i) + X(:, r1) - XA(:, r2));
-% 			V(:, i) = X(:, i) + F(i) .* ...
-% 				(X(:, pbest_idx) - X(:, i) + X(:, r1) - XA(:, r2));
-			
-			% Check boundary
-			if all(V(:, i) >= lb1) && all(V(:, i) <= ub1)				
-				break;
-			end
-		end
+		% Generate pbest_idx
+		pbest = floor(1 + round(p(rt(i)) * NP1) * rand);
+		
+		V(:, i) = X(:, rt(i)) + F(rt(i)) .* (X(:, pbest) - X(:, rt(i))) ...
+			+ F(rt(i)) .* (X(:, r1(i)) - XA(:, r2(i)));
 	end
 	
-	% Crossover
 	for i = 1 : NP1
+		% Binominal Crossover
 		jrand = floor(1 + D1 * rand);
-		
 		for j = 1 : D1
 			if rand < CR(i) || j == jrand
 				U(j, i) = V(j, i);
 			else
-				U(j, i) = X(j, i);
+				U(j, i) = X(j, rt(i));
 			end
 		end
 	end
 	
-	% Prediction	
+	% Prediction
 	anyEmptyInnerState = false;
 	for i = 1 : NP1
 		if isempty(innerState{i})
@@ -399,8 +385,8 @@ while true
 		end
 	end
 	
-	if ~anyEmptyInnerState		
-		for i = 1 : NP1			
+	if ~anyEmptyInnerState
+		for i = 1 : NP1
 			% Copy from itselfs individuals
 			for j = 1 : NP2
 				PX2(:, j, i) = innerState{i}.X(:, j);
@@ -414,7 +400,7 @@ while true
 % 				PX2(:, beginIndex + j, i) = innerXbest(:, r);
 % 			end
 		end
-	else		
+	else
 		for i = 1 : NP1
 			for j = 1 : NP2
 				PX2(:, j, i) = lb2 + (ub2 - lb2) .* rand(D2, 1);
@@ -436,7 +422,7 @@ while true
 % 				feval(innerSolver, innerFitfunXCi, ...
 % 				lb2, ub2, ...
 % 				innerMaxfunevalsX, innerOptionsXCi); 
-% 						
+% 			
 % 			% Compute UC
 % 			innerFitfunUCi = @(y) max(feval(nonlcon, U(:, i), y)).^2;
 % 			
@@ -503,7 +489,7 @@ while true
 % 		countcon = countcon + innerOutX{i}.countcon;
 		counteval = counteval + innerOutU{i}.fes(end);
 		countcon = countcon + innerOutU{i}.countcon;
-	end	
+	end
 
 	% Constraint violation
 	if EpsilonMethod
@@ -528,17 +514,26 @@ while true
 	successRate = 0;
 	FailedIteration = true;
 	if ~EpsilonMethod
-		for i = 1 : NP1
+		for i = 1 : NP1			
 			if fu(i) < fx(i)
-				fx(i) = fu(i);
+				nS = nS + 1;
+				S_CR(nS)	= CR(rt(i));
+				S_F(nS)		= F(rt(i));
+				S_df(nS)	= abs(fu(i) - fx(i));
 				X(:, i) = U(:, i);
-				A(:, NP1 + Succ_Counter + 1) = U(:, i);
+				fx(i) = fu(i);
 				innerXbest(:, i) = innerUbest(:, i);
 				innerState{i} = innerOutU{i}.final;
+				
+				if A_size < NP1
+					A_size = A_size + 1;
+					A(:, A_size) = X(:, i);
+				else
+					ri = floor(1 + NP1 * rand);
+					A(:, ri) = X(:, i);
+				end
+				
 				successRate = successRate + 1 / NP1;
-				S_F(Succ_Counter + 1) = F(i);
-				S_CR(Succ_Counter + 1) = CR(i);
-				Succ_Counter = Succ_Counter + 1;
 				FailedIteration = false;
 			else
 				innerState{i} = innerOutX{i}.final;
@@ -551,17 +546,27 @@ while true
 			
 			if ((X_AND_U_IN_EPSILON || X_AND_U_EQUAL_EPSILON) && fu(i) < fx(i)) || ...
 					(~X_AND_U_IN_EPSILON && psai_u(i) < psai_x(i))
-				fx(i) = fu(i);
+				
+				nS = nS + 1;
+				S_CR(nS)	= CR(rt(i));
+				S_F(nS)		= F(rt(i));
+				S_df(nS)	= abs(fu(i) - fx(i));
 				X(:, i) = U(:, i);
-				A(:, NP1 + Succ_Counter + 1) = U(:, i);
+				fx(i) = fu(i);
 				innerXbest(:, i) = innerUbest(:, i);
 				innerState{i} = innerOutU{i}.final;
-				successRate = successRate + 1 / NP1;
-				S_F(Succ_Counter + 1) = F(i);
-				S_CR(Succ_Counter + 1) = CR(i);
-				Succ_Counter = Succ_Counter + 1;
-				FailedIteration = false;
 				psai_x(i)	= psai_u(i);
+				
+				if A_size < NP1
+					A_size = A_size + 1;
+					A(:, A_size) = X(:, i);
+				else
+					ri = floor(1 + NP1 * rand);
+					A(:, ri) = X(:, i);
+				end
+				
+				successRate = successRate + 1 / NP1;
+				FailedIteration = false;
 			else
 				innerState{i} = innerOutX{i}.final;
 			end
@@ -574,31 +579,26 @@ while true
 			dispconitermsg([X; innerXbest], [U; innerUbest], ...
 				psai_x, countiter, ...
 				XX, YY, ZZ, CC, 'counteval', counteval, ...
-				'successRate', successRate, ...
-				'mu_F', mu_F, ...
-				'mu_CR', mu_CR);
+				'successRate', successRate);
 		else
 			dispconitermsg([X; innerXbest], [U; innerUbest], ...
 				fx(~isinf(fx)), countiter, ...
 				XX, YY, ZZ, CC, 'counteval', counteval, ...
-				'successRate', successRate, ...
-				'mu_F', mu_F, ...
-				'mu_CR', mu_CR);
+				'successRate', successRate);
 		end
 		
 		display_inner_info(innerState);
 	end
 	
-	% Update archive
-	rand_idx = randperm(NP1 + Succ_Counter);
-	A(:, 1 : NP1) = A(:, rand_idx(1 : NP1));
-	
-	% Update CR and F
-	if Succ_Counter > 0
-		mu_CR = (1-w) * mu_CR + w * mean(S_CR(1 : Succ_Counter));
-		mu_F = (1-w) * mu_F + w * sum(S_F(1 : Succ_Counter).^2) / sum(S_F(1 : Succ_Counter));
-	else
-		mu_F = (1-w) * mu_F;
+	% Update MCR and MF
+	if nS > 0
+		w = S_df(1 : nS) ./ sum(S_df(1 : nS));
+		MCR(k) = sum(w .* S_CR(1 : nS));
+		MF(k) = sum(w .* S_F(1 : nS) .* S_F(1 : nS)) / sum(w .* S_F(1 : nS));
+		k = k + 1;
+		if k > H
+			k = 1;
+		end
 	end
 	
 	% Sort
@@ -623,9 +623,7 @@ while true
 		'innerMeanXstd', computeInnerMeanXstd(innerState), ...
 		'successRate', successRate, ...
 		'X_Converged_FEs', mean(X_Converged_FEs), ...
-		'U_Converged_FEs', mean(U_Converged_FEs), ...
-		'mu_F', mu_F, ...
-		'mu_CR', mu_CR);
+		'U_Converged_FEs', mean(U_Converged_FEs));
 	
 	% Iteration counter
 	countiter = countiter + 1;
@@ -643,9 +641,8 @@ xbest2 = innerState{1}.X(:, 1);
 fbest = fx(1);
 
 final.A = A;
-final.mu_F = mu_F;
-final.mu_CR = mu_CR;
-final.psai = psai_x;
+final.MCR = MCR;
+final.MF = MF;
 final.innerState = innerState;
 
 out = finishoutput(out, X, fx, counteval + countcon, countiter, ...
@@ -655,7 +652,5 @@ out = finishoutput(out, X, fx, counteval + countcon, countiter, ...
 	'successRate', successRate, ...
 	'X_Converged_FEs', mean(X_Converged_FEs), ...
 	'U_Converged_FEs', mean(U_Converged_FEs), ...
-	'mu_F', mu_F, ...
-	'mu_CR', mu_CR, ...
 	'countcon', countcon);
 end

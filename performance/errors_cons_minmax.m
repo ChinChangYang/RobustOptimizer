@@ -52,10 +52,10 @@ for iFitfun = 1 : numel(measureOptions.FitnessFunctions)
 	solverOptions1.nonlcon = nonlcon;
 	
 	% Bounds
-	lb1 = measureOptions.L1(:, iFitfun);
-	lb2 = measureOptions.L2(:, iFitfun);
-	ub1 = measureOptions.U1(:, iFitfun);
-	ub2 = measureOptions.U2(:, iFitfun);
+	lb1 = measureOptions.L1(:, iFitfun) * ones(measureOptions.D1, 1);
+	lb2 = measureOptions.L2(:, iFitfun) * ones(measureOptions.D2, 1);
+	ub1 = measureOptions.U1(:, iFitfun) * ones(measureOptions.D1, 1);
+	ub2 = measureOptions.U2(:, iFitfun) * ones(measureOptions.D2, 1);
 
 	for iMaxfunevals = 1 : numel(measureOptions.MaxFunEvals)
 		maxfunevals = measureOptions.MaxFunEvals(iMaxfunevals);
