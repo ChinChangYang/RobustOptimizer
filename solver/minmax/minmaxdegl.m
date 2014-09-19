@@ -98,7 +98,7 @@ end
 
 % Initialize population
 if isempty(X)
-	if NP1 < 1e1
+	if NP1 < 50
 		LHS = lhsdesign(NP1, D1, 'iteration', 10)';
 	elseif NP1 < 1e2
 		LHS = lhsdesign(NP1, D1, 'iteration', 2)';
@@ -381,8 +381,8 @@ while true
 		V2(:, 1 : nBest, i) = bestPopC;
 		
 		% dirty magic
-		V2(:, end - 1, i) = lb2 + abs(1e-7 * rand);
-		V2(:, end, i) = ub2 - abs(1e-7 * rand);
+		V2(:, end - 1, i) = lb2;
+		V2(:, end, i) = ub2;
 	end
 	
 	% Selection

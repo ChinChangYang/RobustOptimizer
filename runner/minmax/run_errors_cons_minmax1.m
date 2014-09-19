@@ -10,8 +10,8 @@ if matlabpool('size') == 0
 end
 
 % Measure options
-measureOptions.MaxFunEvals = 5e6;
-measureOptions.Runs = 8;
+measureOptions.MaxFunEvals = 1e7;
+measureOptions.Runs = 4;
 measureOptions.FitnessFunctions = {...
 	'sainz_f1', ...
 	'sainz_f2', ...
@@ -36,14 +36,14 @@ solverOptions1.TolStagnationIteration = 20;
 solverOptions1.innerMaxIter = 200;
 solverOptions1.migrateFactor = 0.7;
 solverOptions1.ConstraintHandling = 'EpsilonMethod';
-solverOptions1.EpsilonValue = 1e-6;
+solverOptions1.EpsilonValue = 1e-8;
 solverOptions1.EarlyStop = 'auto';
 solverOptions2.NP = 30;
 solverOptions2.F = 0.7;
 solverOptions2.CR = 0.9;
 solverOptions2.TolStagnationIteration = 20;
 solverOptions2.ConstraintHandling = 'EpsilonMethod';
-solverOptions2.EpsilonValue = 1e-6;
+solverOptions2.EpsilonValue = 1e-8;
 solverOptions2.EarlyStop = 'auto';
 
 err = errors_cons_minmax(solver, measureOptions, solverOptions1, solverOptions2);
