@@ -1,23 +1,11 @@
+function run_complete_cec14(solvers, NP, Q, R)
 if matlabpool('size') == 0
 	matlabpool('open');
 end
 
-clear;
-close all;
-load('InitialX.mat');
-solvers = {...
-	'derand1bin',	'derand1bin_sps', ...
-	'debest1bin',	'debest1bin_sps', ...
-	'dcmaeabin',	'dcmaea_sps', ...
-	'deglbin',		'degl_sps', ...
-	'jadebin',		'jade_sps', ...
-	'rbdebin',		'rbde_sps', ...
-	'sadebin',		'sade_sps', ...
-	'shade',		'shade_sps'};
-% Q = 2.^(0:9);
-Q = 32;
+load('initialX.mat');
 measureOptions.Dimension = 30;
-measureOptions.Runs = 51;
+measureOptions.Runs = 28;
 measureOptions.MaxFunEvals = measureOptions.Dimension * 1e4;
 measureOptions.LowerBounds = -100;
 measureOptions.UpperBounds = 100;
@@ -30,8 +18,8 @@ measureOptions.FitnessFunctions = ...
 	'cec14_f22', 'cec14_f23', 'cec14_f24', 'cec14_f25', ...
 	'cec14_f26', 'cec14_f27', 'cec14_f28', 'cec14_f29', ...
 	'cec14_f30'};
-solverOptions.dimensionFactor = 5;
-solverOptions.NP = solverOptions.dimensionFactor * measureOptions.Dimension;
+solverOptions.dimensionFactor = NP / measureOptions.Dimension;
+solverOptions.NP = NP;
 solverOptions.F = 0.7;
 solverOptions.CR = 0.5;
 solverOptions.RecordPoint = 21;
@@ -51,10 +39,11 @@ for isolver = 1 : numel(solvers)
 		innerdate = datestr(now, 'yyyymmddHHMM');
 		solver = solvers{isolver};
 		solverOptions.Q = Q(iQ);
+		solverOptions.R = R;
 		[allout, allfvals, allfes, T0, T1, T2] = complete_cec14(...
 			solver, ...
 			measureOptions, ...
-			solverOptions);
+			solverOptions); %#ok<NASGU,ASGLU>
 		
 		elapsedTime = toc(startTime);
 		if elapsedTime < 60
@@ -81,4 +70,5 @@ for isolver = 1 : numel(solvers)
 	end
 	
 	save(metafilename, 'filenames');
+end
 end
