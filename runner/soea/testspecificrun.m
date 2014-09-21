@@ -20,25 +20,31 @@ load('InitialX.mat');
 % solver = 'shade';
 % solver = 'shade_sps';
 % solver = 'shade_sps_eig';
-solver = 'shadeeig';
+% solver = 'shadeeig';
 % solver = 'deglbin';
-fitfun = 'cec14_f1';
+solver = 'shade_sps_eig_d';
+fitfun = 'cec14_f10';
 D = 30;
 maxfunevals = D * 1e4;
 solverOptions.nonlcon = [];
-solverOptions.Q = 32;
-solverOptions.NP = 5 * D;
+solverOptions.NP = 9 * D;
+solverOptions.Q = 64;
+solverOptions.R = 0.5;
+solverOptions.wc = 0.01;
+solverOptions.H = 150;
+solverOptions.NPmin = 'numel(lb)';
+solverOptions.beta = 0.5;
 solverOptions.ftarget = 1e-8;
 solverOptions.Restart = 0;
-solverOptions.Display = 'iter';
+solverOptions.Display = 'off';
 solverOptions.RecordPoint = 21;
 solverOptions.Noise = false;
 % solverOptions.ConstraintHandling = 'none';
 solverOptions.ConstraintHandling = 'Interpolation';
 % solverOptions.ConstraintHandling = 'EpsilonMethod';
-solverOptions.initial.X = eval(sprintf('XD%dNP%d', ...
-	D, ...
-	solverOptions.NP));
+% solverOptions.initial.X = eval(sprintf('XD%dNP%d', ...
+% 	D, ...
+% 	solverOptions.NP));
 % solverOptions.initial.X = eval(sprintf('XF%dNP%d', ...
 % 	3, ...
 % 	solverOptions.NP));
@@ -111,11 +117,11 @@ title('Std. of X solutions');
 subplot(235);
 hold off;
 if solverOptions.Noise
-	loglog(out.G, out.distancemean);
+	loglog(out.fes, out.distancemean);
 else
-	semilogy(out.G, out.distancemean);
+	semilogy(out.fes, out.distancemean);
 end
-xlabel('Generation');
+xlabel('FEs');
 title('Mean of distances between the target vectors and the centroid');
 subplot(236);
 hold off;
@@ -332,13 +338,28 @@ if isfield(out, 'S_FC') && isfield(out, 'S_mFC')
 	end
 end
 
-if isfield(out, 'mFC') && isfield(out, 'mSFC')
-	plot(out.G, out.mFC, 'b');
-	hold on;
-	plot(out.G, out.mSFC, 'r');
+if isfield(out, 'muMCR')
+	figure;
+	plot(out.fes, out.muMCR, 'b');
 	title(sprintf('Solve %s by %s', fitfun, solver));
-	xlabel('Generation');
-	ylabel('Number');
+	xlabel('FEs');
+	ylabel('muMCR');
+end
+
+if isfield(out, 'muMF')
+	figure;
+	plot(out.fes, out.muMF, 'b');
+	title(sprintf('Solve %s by %s', fitfun, solver));
+	xlabel('FEs');
+	ylabel('muMF');
+end
+
+if isfield(out, 'muMR')
+	figure;
+	plot(out.fes, out.muMR, 'b');
+	title(sprintf('Solve %s by %s', fitfun, solver));
+	xlabel('FEs');
+	ylabel('muMR');
 end
 
 % toc(startTime);

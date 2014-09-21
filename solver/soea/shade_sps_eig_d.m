@@ -1,5 +1,5 @@
-function [xmin, fmin, out] = shade_sps_eig_a(fitfun, lb, ub, maxfunevals, options)
-% SHADE_SPS_EIG SHADE algorithm with SPS and EIG Framework (A)
+function [xmin, fmin, out] = shade_sps_eig_d(fitfun, lb, ub, maxfunevals, options)
+% SHADE_SPS_EIG SHADE algorithm with SPS and EIG Framework (D)
 % SHADE_SPS_EIG(fitfun, lb, ub, maxfunevals) minimize the function fitfun in
 % box constraints [lb, ub] with the maximal function evaluations
 % maxfunevals.
@@ -8,12 +8,15 @@ if nargin <= 4
 	options = [];
 end
 
-defaultOptions.NP = 100;
+defaultOptions.NP = 270;
 defaultOptions.F = 0.7;
 defaultOptions.CR = 0.5;
-defaultOptions.Q = 70;
+defaultOptions.Q = 64;
 defaultOptions.R = 0.5;
-defaultOptions.wc = 0.1;
+defaultOptions.wc = 0.01;
+defaultOptions.H = 150;
+defaultOptions.NPmin = 'numel(lb)';
+defaultOptions.beta = 0.5;
 defaultOptions.Display = 'off';
 defaultOptions.RecordPoint = 100;
 defaultOptions.ftarget = -Inf;
@@ -23,12 +26,15 @@ defaultOptions.initial.f = [];
 defaultOptions.initial.A = [];
 defaultOptions.initial.MCR = [];
 defaultOptions.initial.MF = [];
+defaultOptions.initial.MR = [];
 defaultOptions.ConstraintHandling = 'Interpolation';
 
 options = setdefoptions(options, defaultOptions);
 Q = options.Q;
-R = options.R;
 wc = options.wc;
+H = options.H;
+NPmin = eval(options.NPmin);
+beta = options.beta;
 isDisplayIter = strcmp(options.Display, 'iter');
 RecordPoint = max(0, floor(options.RecordPoint));
 ftarget = options.ftarget;
@@ -47,21 +53,21 @@ if ~isempty(options.initial)
 	A = options.initial.A;
 	MCR = options.initial.MCR;
 	MF = options.initial.MF;
+	MR = options.initial.MR;
 else
 	X = [];
 	fx = [];
 	A = [];
 	MCR = [];
 	MF = [];
+	MR = [];
 end
 
 D = numel(lb);
 if isempty(X)
 	NP = options.NP;
-	H = NP;
 else
 	[~, NP] = size(X);
-	H = NP;
 end
 
 % Initialize variables
@@ -69,9 +75,9 @@ counteval = 0;
 countiter = 1;
 countStagnation = 0;
 out = initoutput(RecordPoint, D, NP, maxfunevals, ...
-	'FC', ...
 	'muMF', ...
-	'muMCR');
+	'muMCR', ...
+	'muMR');
 
 % Initialize contour data
 if isDisplayIter
@@ -114,6 +120,11 @@ if isempty(MCR)
 	MCR = options.CR * ones(H, 1);
 end
 
+% mu_R
+if isempty(MR)
+	MR = options.R * ones(H, 1);
+end
+
 % Initialize variables
 V = X;
 U = X;
@@ -125,11 +136,10 @@ C = cov(X');
 k = 1;
 r = zeros(1, NP);
 p = zeros(1, NP);
-pmin = 2 / NP;
-A_size = 0;
 fu = zeros(1, NP);
 S_CR = zeros(1, NP);	% Set of crossover rate
 S_F = zeros(1, NP);		% Set of scaling factor
+S_R = zeros(1, NP);		% Set of EIG ratio
 S_df = zeros(1, NP);	% Set of df
 FC = zeros(1, NP);		% Consecutive Failure Counter
 Chy = cauchyrnd(0, 0.1, NP + 10);
@@ -138,6 +148,7 @@ SP = X;
 fSP = fx;
 iSP = 1;
 [~, sortidxfSP] = sort(fSP);
+NPinit = NP;
 
 % Display
 if isDisplayIter
@@ -147,9 +158,9 @@ end
 
 % Record
 out = updateoutput(out, X, fx, counteval, countiter, ...
-	'FC', FC, ...
 	'muMF', mean(MF), ...
-	'muMCR', mean(MCR));
+	'muMCR', mean(MCR), ...
+	'muMR', mean(MR));
 
 % Iteration counter
 countiter = countiter + 1;
@@ -194,7 +205,19 @@ while true
 		end
 	end
 	
+	% EIG ratio
+	R = zeros(1, NP);
+	
+	for i = 1 : NP
+		r(i) = floor(1 + H * rand);
+		R(i) = MR(r(i)) + 0.1 * randn;
+	end
+	
+	R(R > 1) = 1;
+	R(R < 0) = 0;	
+	
 	% pbest
+	pmin = 2 / NP;
 	for i = 1 : NP
 		p(i) = pmin + rand * (0.2 - pmin);
 	end
@@ -214,9 +237,9 @@ while true
 		end
 		
 		% Generate r2
-		r2 = floor(1 + (NP + A_size) * rand);
+		r2 = floor(1 + (NP + NP) * rand);
 		while i == r1 || r1 == r2
-			r2 = floor(1 + (NP + A_size) * rand);
+			r2 = floor(1 + (NP + NP) * rand);
 		end
 		
 		if FC(i) <= Q
@@ -234,7 +257,7 @@ while true
 	for i = 1 : NP
 		jrand = floor(1 + D * rand);
 		
-		if rand < R
+		if rand < R(i)
 			if FC(i) <= Q
 				% EIG Framework
 				XT(:, i) = B' * X(:, i);
@@ -324,6 +347,7 @@ while true
 			nS = nS + 1;
 			S_CR(nS)	= CR(i);
 			S_F(nS)		= F(i);
+			S_R(nS)		= R(i);
 			S_df(nS)	= abs(fu(i) - fx(i));
 			X(:, i)		= U(:, i);
 			fx(i)		= fu(i);
@@ -332,13 +356,8 @@ while true
 			iSP			= mod(iSP, NP) + 1;
 			FC(i)		= 0;
 			
-			if A_size < NP
-				A_size = A_size + 1;
-				A(:, A_size) = X(:, i);
-			else
-				ri = floor(1 + NP * rand);
-				A(:, ri) = X(:, i);
-			end
+            ri = floor(1 + NP * rand);
+            A(:, ri) = X(:, i);
 			
 			FailedIteration = false;
 		else
@@ -351,6 +370,7 @@ while true
 		w = S_df(1 : nS) ./ sum(S_df(1 : nS));
 		MCR(k) = sum(w .* S_CR(1 : nS));
 		MF(k) = sum(w .* S_F(1 : nS) .* S_F(1 : nS)) / sum(w .* S_F(1 : nS));
+		MR(k) = sum(w .* S_R(1 : nS));
 		k = k + 1;
 		if k > H
 			k = 1;
@@ -361,13 +381,25 @@ while true
 	[fx, fidx] = sort(fx);
 	X = X(:, fidx);
 	FC = FC(fidx);
-	[~, sortidxfSP] = sort(fSP);
+	
+	% Update NP and population
+    NP = round(NPinit - (NPinit - NPmin) * (counteval / maxfunevals).^beta);
+    fx = fx(1 : NP);
+    X = X(:, 1 : NP);
+    FC = FC(1 : NP);
+    A = A(:, 1 : NP);
+	[~, sortidxfSP] = sort(fSP);    
+    remainingfSPidx = sortidxfSP <= NP;
+    SP = SP(:, remainingfSPidx);
+    fSP = fSP(:, remainingfSPidx);
+    sortidxfSP = sortidxfSP(remainingfSPidx);
+    iSP	= mod(iSP - 1, NP) + 1;
 	
 	% Record
 	out = updateoutput(out, X, fx, counteval, countiter, ...
-		'FC', FC, ...
 		'muMF', mean(MF), ...
-		'muMCR', mean(MCR));
+		'muMCR', mean(MCR), ...
+		'muMR', mean(MR));
 	
 	% Iteration counter
 	countiter = countiter + 1;
@@ -384,7 +416,7 @@ end
 xmin = X(:, minindex);
 
 out = finishoutput(out, X, fx, counteval, countiter, ...
-	'FC', zeros(NP, 1), ...
 	'muMF', mean(MF), ...
-	'muMCR', mean(MCR));
+	'muMCR', mean(MCR), ...
+	'muMR', mean(MR));
 end

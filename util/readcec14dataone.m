@@ -1,7 +1,7 @@
 function readcec14dataone(metafilename)
 load(metafilename);
 filenames_o = filenames;
-iA = numel(filenames_o);
+nA = numel(filenames_o);
 load(filenames_o{1});
 
 D					= measureOptions.Dimension;
@@ -11,25 +11,30 @@ qdynfilename		= sprintf('CEC14_D%d_QDYN.xlsx', D);
 contfilename		= sprintf('CEC14_D%d_CONT.xlsx', D);
 qbarfilename		= sprintf('CEC14_D%d_QBAR.xlsx', D);
 
-[solver, errmean, errstd, succrate, compcomplex, errmedian, ...
-	qmediansum, distancemedian, fes, G, qmedianmean] = ...
-	readonedata(filenames_o{iA}); %#ok<ASGLU>
-
-xlswrite(tablefilename, {solver}, solver, 'A1');
-xlswrite(tablefilename, {'Mean'}, solver, 'A2');
-xlswrite(tablefilename, errmean, solver, 'A3:A32');
-xlswrite(tablefilename, {'St. D.'}, solver, 'B2');
-xlswrite(tablefilename, errstd, solver, 'B3:B32');
-xlswrite(tablefilename, {'SR'}, solver, 'C2');
-xlswrite(tablefilename, succrate, solver, 'C3:C32');
-xlswrite(convfilename, G, solver, 'A1:U1');
-xlswrite(convfilename, errmedian, solver, 'A2:U31');
-xlswrite(qdynfilename, G, solver, 'A1:U1');
-xlswrite(qdynfilename, qmediansum, solver, 'A2:U31');
-xlswrite(contfilename, G, solver, 'A1:U1');
-xlswrite(contfilename, distancemedian, solver, 'A2:U31');
-xlswrite(qbarfilename, G, solver, 'A1:U1');
-xlswrite(qbarfilename, qmedianmean, solver, 'A2:U31');
+for i = 1 : nA
+	[solver, errmean, errstd, succrate, compcomplex, errmedian, ...
+		qmediansum, distancemedian, fes, G, qmedianmean] = ...
+		readonedata(filenames_o{i}); %#ok<ASGLU>
+	
+	solver = sprintf('%d.%s', i, solver);
+	xlswrite(tablefilename, {solver}, solver, 'A1');
+	xlswrite(tablefilename, {'Mean'}, solver, 'A2');
+	xlswrite(tablefilename, errmean, solver, 'A3:A32');
+	xlswrite(tablefilename, {'St. D.'}, solver, 'B2');
+	xlswrite(tablefilename, errstd, solver, 'B3:B32');
+	xlswrite(tablefilename, {'SR'}, solver, 'C2');
+	xlswrite(tablefilename, succrate, solver, 'C3:C32');
+	xlswrite(convfilename, G, solver, 'A1:U1');
+	xlswrite(convfilename, errmedian, solver, 'A2:U31');
+	xlswrite(qdynfilename, G, solver, 'A1:U1');
+	xlswrite(qdynfilename, qmediansum, solver, 'A2:U31');
+	xlswrite(contfilename, G, solver, 'A1:U1');
+	xlswrite(contfilename, distancemedian, solver, 'A2:U31');
+	xlswrite(qbarfilename, G, solver, 'A1:U1');
+	xlswrite(qbarfilename, qmedianmean, solver, 'A2:U31');
+	
+	fprintf('%d -- Mean Succ. Rate: %.2f%%\n', i, 100 * mean(succrate));
+end
 
 fprintf('%s: OK!\n', tablefilename);
 end

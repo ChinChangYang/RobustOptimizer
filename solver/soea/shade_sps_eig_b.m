@@ -1,5 +1,5 @@
-function [xmin, fmin, out] = shade_sps_eig_a(fitfun, lb, ub, maxfunevals, options)
-% SHADE_SPS_EIG SHADE algorithm with SPS and EIG Framework (A)
+function [xmin, fmin, out] = shade_sps_eig_b(fitfun, lb, ub, maxfunevals, options)
+% SHADE_SPS_EIG SHADE algorithm with SPS and EIG Framework (B)
 % SHADE_SPS_EIG(fitfun, lb, ub, maxfunevals) minimize the function fitfun in
 % box constraints [lb, ub] with the maximal function evaluations
 % maxfunevals.
@@ -23,11 +23,11 @@ defaultOptions.initial.f = [];
 defaultOptions.initial.A = [];
 defaultOptions.initial.MCR = [];
 defaultOptions.initial.MF = [];
+defaultOptions.initial.MR = [];
 defaultOptions.ConstraintHandling = 'Interpolation';
 
 options = setdefoptions(options, defaultOptions);
 Q = options.Q;
-R = options.R;
 wc = options.wc;
 isDisplayIter = strcmp(options.Display, 'iter');
 RecordPoint = max(0, floor(options.RecordPoint));
@@ -47,12 +47,14 @@ if ~isempty(options.initial)
 	A = options.initial.A;
 	MCR = options.initial.MCR;
 	MF = options.initial.MF;
+	MR = options.initial.MR;
 else
 	X = [];
 	fx = [];
 	A = [];
 	MCR = [];
 	MF = [];
+	MR = [];
 end
 
 D = numel(lb);
@@ -71,7 +73,8 @@ countStagnation = 0;
 out = initoutput(RecordPoint, D, NP, maxfunevals, ...
 	'FC', ...
 	'muMF', ...
-	'muMCR');
+	'muMCR', ...
+	'muMR');
 
 % Initialize contour data
 if isDisplayIter
@@ -114,6 +117,11 @@ if isempty(MCR)
 	MCR = options.CR * ones(H, 1);
 end
 
+% mu_R
+if isempty(MR)
+	MR = options.R * ones(H, 1);
+end
+
 % Initialize variables
 V = X;
 U = X;
@@ -130,6 +138,7 @@ A_size = 0;
 fu = zeros(1, NP);
 S_CR = zeros(1, NP);	% Set of crossover rate
 S_F = zeros(1, NP);		% Set of scaling factor
+S_R = zeros(1, NP);		% Set of EIG ratio
 S_df = zeros(1, NP);	% Set of df
 FC = zeros(1, NP);		% Consecutive Failure Counter
 Chy = cauchyrnd(0, 0.1, NP + 10);
@@ -149,7 +158,8 @@ end
 out = updateoutput(out, X, fx, counteval, countiter, ...
 	'FC', FC, ...
 	'muMF', mean(MF), ...
-	'muMCR', mean(MCR));
+	'muMCR', mean(MCR), ...
+	'muMR', mean(MR));
 
 % Iteration counter
 countiter = countiter + 1;
@@ -194,6 +204,17 @@ while true
 		end
 	end
 	
+	% EIG ratio
+	R = zeros(1, NP);
+	
+	for i = 1 : NP
+		r(i) = floor(1 + H * rand);
+		R(i) = MR(r(i)) + 0.1 * randn;
+	end
+	
+	R(R > 1) = 1;
+	R(R < 0) = 0;	
+	
 	% pbest
 	for i = 1 : NP
 		p(i) = pmin + rand * (0.2 - pmin);
@@ -234,7 +255,7 @@ while true
 	for i = 1 : NP
 		jrand = floor(1 + D * rand);
 		
-		if rand < R
+		if rand < R(i)
 			if FC(i) <= Q
 				% EIG Framework
 				XT(:, i) = B' * X(:, i);
@@ -324,6 +345,7 @@ while true
 			nS = nS + 1;
 			S_CR(nS)	= CR(i);
 			S_F(nS)		= F(i);
+			S_R(nS)		= R(i);
 			S_df(nS)	= abs(fu(i) - fx(i));
 			X(:, i)		= U(:, i);
 			fx(i)		= fu(i);
@@ -351,6 +373,7 @@ while true
 		w = S_df(1 : nS) ./ sum(S_df(1 : nS));
 		MCR(k) = sum(w .* S_CR(1 : nS));
 		MF(k) = sum(w .* S_F(1 : nS) .* S_F(1 : nS)) / sum(w .* S_F(1 : nS));
+		MR(k) = sum(w .* S_R(1 : nS));
 		k = k + 1;
 		if k > H
 			k = 1;
@@ -367,7 +390,8 @@ while true
 	out = updateoutput(out, X, fx, counteval, countiter, ...
 		'FC', FC, ...
 		'muMF', mean(MF), ...
-		'muMCR', mean(MCR));
+		'muMCR', mean(MCR), ...
+		'muMR', mean(MR));
 	
 	% Iteration counter
 	countiter = countiter + 1;
@@ -386,5 +410,6 @@ xmin = X(:, minindex);
 out = finishoutput(out, X, fx, counteval, countiter, ...
 	'FC', zeros(NP, 1), ...
 	'muMF', mean(MF), ...
-	'muMCR', mean(MCR));
+	'muMCR', mean(MCR), ...
+	'muMR', mean(MR));
 end
