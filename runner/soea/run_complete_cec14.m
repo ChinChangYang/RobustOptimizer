@@ -1,4 +1,4 @@
-function run_complete_cec14(solvers, NP, Q, R)
+function run_complete_cec14(solvers, Q, solverOptions)
 if matlabpool('size') == 0
 	matlabpool('open');
 end
@@ -18,17 +18,16 @@ measureOptions.FitnessFunctions = ...
 	'cec14_f22', 'cec14_f23', 'cec14_f24', 'cec14_f25', ...
 	'cec14_f26', 'cec14_f27', 'cec14_f28', 'cec14_f29', ...
 	'cec14_f30'};
-solverOptions.dimensionFactor = NP / measureOptions.Dimension;
-solverOptions.NP = NP;
+
 solverOptions.F = 0.7;
 solverOptions.CR = 0.5;
 solverOptions.RecordPoint = 21;
 solverOptions.ftarget = 1e-8;
 solverOptions.TolX = 0;
 solverOptions.TolStagnationIteration = Inf;
-solverOptions.initial.X = eval(sprintf('XD%dNP%d', ...
-	measureOptions.Dimension, ...
-	solverOptions.NP));
+% solverOptions.initial.X = eval(sprintf('XD%dNP%d', ...
+% 	measureOptions.Dimension, ...
+% 	solverOptions.NP));
 
 filenames = cell(numel(Q), numel(solvers));
 outsidedate = datestr(now, 'yyyymmddHHMM');
@@ -39,7 +38,6 @@ for isolver = 1 : numel(solvers)
 		innerdate = datestr(now, 'yyyymmddHHMM');
 		solver = solvers{isolver};
 		solverOptions.Q = Q(iQ);
-		solverOptions.R = R;
 		[allout, allfvals, allfes, T0, T1, T2] = complete_cec14(...
 			solver, ...
 			measureOptions, ...

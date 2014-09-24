@@ -7,13 +7,13 @@ load(filenames_o{1});
 D					= measureOptions.Dimension;
 tablefilename		= sprintf('CEC14_D%d_TABLE.xlsx', D);
 convfilename		= sprintf('CEC14_D%d_CONV.xlsx', D);
-qdynfilename		= sprintf('CEC14_D%d_QDYN.xlsx', D);
 contfilename		= sprintf('CEC14_D%d_CONT.xlsx', D);
-qbarfilename		= sprintf('CEC14_D%d_QBAR.xlsx', D);
+
+meansuccrates			= zeros(1, nA);
 
 for i = 1 : nA
 	[solver, errmean, errstd, succrate, compcomplex, errmedian, ...
-		qmediansum, distancemedian, fes, G, qmedianmean] = ...
+		~, distancemedian, fes, G, ~] = ...
 		readonedata(filenames_o{i}); %#ok<ASGLU>
 	
 	solver = sprintf('%d.%s', i, solver);
@@ -26,14 +26,18 @@ for i = 1 : nA
 	xlswrite(tablefilename, succrate, solver, 'C3:C32');
 	xlswrite(convfilename, G, solver, 'A1:U1');
 	xlswrite(convfilename, errmedian, solver, 'A2:U31');
-	xlswrite(qdynfilename, G, solver, 'A1:U1');
-	xlswrite(qdynfilename, qmediansum, solver, 'A2:U31');
 	xlswrite(contfilename, G, solver, 'A1:U1');
 	xlswrite(contfilename, distancemedian, solver, 'A2:U31');
-	xlswrite(qbarfilename, G, solver, 'A1:U1');
-	xlswrite(qbarfilename, qmedianmean, solver, 'A2:U31');
 	
-	fprintf('%d -- Mean Succ. Rate: %.2f%%\n', i, 100 * mean(succrate));
+	meansuccrates(i) = mean(succrate);
+	fprintf('%d -- Mean Succ. Rate: %.2f%%\n', i, 100 * meansuccrates(i));
+end
+
+fprintf('-- Sorting --\n');
+[meansuccrates, index] = sort(meansuccrates);
+
+for i = 1 : nA
+	fprintf('%d -- Mean Succ. Rate: %.2f%%\n', index(i), 100 * meansuccrates(i));
 end
 
 fprintf('%s: OK!\n', tablefilename);
@@ -61,25 +65,31 @@ for j = 1 : nfuncs
 end
 errmedian	= allfvalssorted(:, round(0.5 * (end + 1)), :);
 errmedian	= reshape(errmedian, nprogress, nfuncs)';
-[NP, ~]		= size(allout{1, 1}.FC); %#ok<USENS>
-q			= zeros(nruns, NP, nprogress, nfuncs);
-for j = 1 : nfuncs
-	for k = 1 : nruns
-		q(k, :, :, j) = allout{k, j}.FC;
+
+if ~isfield(allout{1, 1}, 'FC') %#ok<USENS>
+	qmediansum = [];
+	qmedianmean = [];
+else
+	[NP, ~]		= size(allout{1, 1}.FC); 
+	q			= zeros(nruns, NP, nprogress, nfuncs);
+	for j = 1 : nfuncs
+		for k = 1 : nruns
+			q(k, :, :, j) = allout{k, j}.FC;
+		end
 	end
+	qsorted = q;
+	for j = 1 : nfuncs
+		qsorted(:, :, :, j) = q(sortindices(:, :, j), :, :, j);
+	end
+	qmedian		= qsorted(round(0.5 * (end + 1)), :, :, :);
+	qmedianmean = mean(qmedian, 2);
+	qmedianmean = reshape(qmedianmean, nprogress, nfuncs)';
+	% qmedianmax	= max(qmedian, [], 2);
+	% qmedianmax	= reshape(qmedianmax, nprogress, nfuncs)';
+	qmedian		= reshape(qmedian, NP, nprogress, nfuncs);
+	qmediansum	= sum(qmedian > solverOptions.Q);
+	qmediansum	= reshape(qmediansum, nprogress, nfuncs)';
 end
-qsorted = q;
-for j = 1 : nfuncs
-	qsorted(:, :, :, j) = q(sortindices(:, :, j), :, :, j);
-end
-qmedian		= qsorted(round(0.5 * (end + 1)), :, :, :);
-qmedianmean = mean(qmedian, 2);
-qmedianmean = reshape(qmedianmean, nprogress, nfuncs)';
-% qmedianmax	= max(qmedian, [], 2);
-% qmedianmax	= reshape(qmedianmax, nprogress, nfuncs)';
-qmedian		= reshape(qmedian, NP, nprogress, nfuncs);
-qmediansum	= sum(qmedian > solverOptions.Q);
-qmediansum	= reshape(qmediansum, nprogress, nfuncs)';
 distance	= zeros(nruns, nprogress, nfuncs);
 for j = 1 : nfuncs
 	for k = 1 : nruns
