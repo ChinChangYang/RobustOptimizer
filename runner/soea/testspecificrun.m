@@ -3,8 +3,8 @@
 startTime = tic;
 clear;
 close all;
-rng('default');
-load('InitialX.mat');
+% rng('default');
+% load('InitialX.mat');
 % load('InitialX_CEC11.mat');
 % solver = 'sadeeig';
 % solver = 'dcmaea_sps';
@@ -22,23 +22,23 @@ load('InitialX.mat');
 % solver = 'shade_sps_eig';
 % solver = 'shadeeig';
 % solver = 'deglbin';
-solver = 'shade_sps_eig_d';
-fitfun = 'cec14_f10';
+% solver = 'shade_sps_eig_c';
+solver = 'lshade';
+fitfun = 'cec14_f6';
 D = 30;
 maxfunevals = D * 1e4;
 solverOptions.nonlcon = [];
-solverOptions.NP = 9 * D;
-solverOptions.Q = 64;
-solverOptions.R = 0.5;
-solverOptions.wc = 0.01;
-solverOptions.H = 150;
-solverOptions.NPmin = 'numel(lb)';
-solverOptions.beta = 0.5;
+solverOptions.NP = 18 * D;
+solverOptions.Ar = 2.6;
+solverOptions.p = 0.11;
+solverOptions.H = 6;
+solverOptions.NPmin = '4';
 solverOptions.ftarget = 1e-8;
 solverOptions.Restart = 0;
 solverOptions.Display = 'off';
-solverOptions.RecordPoint = 21;
+solverOptions.RecordPoint = 201;
 solverOptions.Noise = false;
+solverOptions.EarlyStop = 'fitness';
 % solverOptions.ConstraintHandling = 'none';
 solverOptions.ConstraintHandling = 'Interpolation';
 % solverOptions.ConstraintHandling = 'EpsilonMethod';
@@ -57,6 +57,10 @@ ub = 100 * ones(D, 1);
 % lb = zeros(20, 1);
 % ub = 4 * pi * ones(20, 1);
 % [lb, ub] = getlimit_messenger;
+solverOptions.initial.X = ...
+	repmat(lb, 1, solverOptions.NP) + ...
+	repmat(ub - lb, 1, solverOptions.NP) .* ...
+	lhsdesign(solverOptions.NP, D, 'iteration', 100)';
 [xmin, fmin, out] = ...
     feval(solver, fitfun, lb, ub, maxfunevals, solverOptions);
 % fprintf('out.bestever.xmin = \n');

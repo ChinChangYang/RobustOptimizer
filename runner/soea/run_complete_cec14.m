@@ -19,8 +19,6 @@ measureOptions.FitnessFunctions = ...
 	'cec14_f26', 'cec14_f27', 'cec14_f28', 'cec14_f29', ...
 	'cec14_f30'};
 
-solverOptions.F = 0.7;
-solverOptions.CR = 0.5;
 solverOptions.RecordPoint = 21;
 solverOptions.ftarget = 1e-8;
 solverOptions.TolX = 0;
