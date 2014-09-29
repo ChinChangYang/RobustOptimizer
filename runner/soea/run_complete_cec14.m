@@ -1,10 +1,10 @@
-function run_complete_cec14(solvers, Q, solverOptions)
+function run_complete_cec14(solvers, Q, solverOptions, measureOptions)
 if matlabpool('size') == 0
 	matlabpool('open');
 end
 
 load('initialX.mat');
-measureOptions.Dimension = 30;
+% measureOptions.Dimension = 30;
 measureOptions.Runs = 28;
 measureOptions.MaxFunEvals = measureOptions.Dimension * 1e4;
 measureOptions.LowerBounds = -100;
