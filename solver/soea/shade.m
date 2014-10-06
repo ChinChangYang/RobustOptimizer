@@ -8,9 +8,10 @@ if nargin <= 4
 	options = [];
 end
 
-defaultOptions.NP = 100;
+defaultOptions.NP = 150;
 defaultOptions.F = 0.7;
 defaultOptions.CR = 0.5;
+defaultOptions.p = 0.2;
 defaultOptions.Display = 'off';
 defaultOptions.RecordPoint = 100;
 defaultOptions.ftarget = -Inf;
@@ -27,6 +28,7 @@ defaultOptions.nonlcon = [];
 defaultOptions.EarlyStop = 'none';
 
 options = setdefoptions(options, defaultOptions);
+p = options.p;
 isDisplayIter = strcmp(options.Display, 'iter');
 RecordPoint = max(0, floor(options.RecordPoint));
 ftarget = options.ftarget;
@@ -46,10 +48,15 @@ else
 	EpsilonMethod = false;
 end
 
-if ~isempty(strfind(options.EarlyStop, 'auto'))
-	EarlyStop = true;
+if ~isempty(strfind(options.EarlyStop, 'fitness'))
+	EarlyStopOnFitness = true;
+	AutoEarlyStop = false;
+elseif ~isempty(strfind(options.EarlyStop, 'auto'))
+	EarlyStopOnFitness = false;
+	AutoEarlyStop = true;
 else
-	EarlyStop = false;
+	EarlyStopOnFitness = false;
+	AutoEarlyStop = false;
 end
 
 if ~isempty(options.initial)
@@ -85,7 +92,8 @@ countStagnation = 0;
 countcon = 0;
 out = initoutput(RecordPoint, D, NP, maxfunevals, ...
 	'countcon', ...
-	'MF', 'MCR', ...
+	'muMF', ...
+	'muMCR', ...
 	'FC');
 
 % Initialize contour data
@@ -157,9 +165,6 @@ end
 V = X;
 U = X;
 k = 1;
-r = zeros(1, NP);
-p = zeros(1, NP);
-pmin = 2 / NP;
 A_size = 0;
 fu = zeros(1, NP);
 S_CR = zeros(1, NP);	% Set of crossover rate
@@ -182,8 +187,8 @@ end
 % Record
 out = updateoutput(out, X, fx, counteval, countiter, ...
 	'countcon', countcon, ...
-	'MF', MF, ...
-	'MCR', MCR, ...
+	'muMF', mean(MF), ...
+	'muMCR', mean(MCR), ...
 	'FC', FC);
 
 % Iteration counter
@@ -192,11 +197,11 @@ countiter = countiter + 1;
 while true
 	% Termination conditions
 	outofmaxfunevals = counteval > maxfunevals - NP;
-	if ~EarlyStop
+	if ~EarlyStopOnFitness && ~AutoEarlyStop
 		if outofmaxfunevals
 			break;
 		end
-	else		
+	elseif AutoEarlyStop
 		reachftarget = min(fx) <= ftarget;
 		TolX = 10 * eps(mean(X(:)));
 		solutionconvergence = std(X(:)) <= TolX;
@@ -211,32 +216,29 @@ while true
 				stagnation
 			break;
 		end
+	elseif EarlyStopOnFitness
+		reachftarget = min(fx) <= ftarget;
+		
+		if outofmaxfunevals || ...
+				reachftarget
+			break;
+		end
 	end
 	
-	% Reset S
-	nS = 0;
+	% Memory Indices
+	r = floor(1 + H * rand(1, NP));
 	
 	% Crossover rates
-	CR = zeros(1, NP);
-	
-	for i = 1 : NP
-		r(i) = floor(1 + H * rand);
-		CR(i) = MCR(r(i)) + 0.1 * randn;
-	end
-	
-	CR(CR > 1) = 1;
+	CR = MCR(r)' + 0.1 * randn(1, NP);	
 	CR(CR < 0) = 0;
+	CR(CR > 1) = 1;
 	
 	% Scaling factors
 	F = zeros(1, NP);
 	for i = 1 : NP
 		while F(i) <= 0
 			F(i) = MF(r(i)) + Chy(iChy);
-			if iChy < numel(Chy)
-				iChy = iChy + 1;
-			else
-				iChy = 1;
-			end
+			iChy = mod(iChy, numel(Chy)) + 1;
 		end
 		
 		if F(i) > 1
@@ -245,9 +247,7 @@ while true
 	end
 	
 	% pbest
-	for i = 1 : NP
-		p(i) = pmin + rand * (0.2 - pmin);
-	end
+	pbest = 1 + floor(max(2, round(p * NP)) * rand(1, NP));
 	
 	XA = [X, A];
 	
@@ -268,11 +268,8 @@ while true
 	end
 	
 	% Mutation
-	for i = 1 : NP
-		% Generate pbest_idx
-		pbest = floor(1 + round(p(rt(i)) * NP) * rand);
-		
-		V(:, i) = X(:, rt(i)) + F(rt(i)) .* (X(:, pbest) - X(:, rt(i))) ...
+	for i = 1 : NP		
+		V(:, i) = X(:, rt(i)) + F(rt(i)) .* (X(:, pbest(i)) - X(:, rt(i))) ...
 			+ F(rt(i)) .* (X(:, r1(i)) - XA(:, r2(i)));
 	end
 	
@@ -329,17 +326,17 @@ while true
 	end
 	
 	% Selection
+	nS = 0;
 	if ~EpsilonMethod
 		FailedIteration = true;
 		for i = 1 : NP
 			if fu(i) < fx(i)
-				nS = nS + 1;
+				nS			= nS + 1;
 				S_CR(nS)	= CR(rt(i));
 				S_F(nS)		= F(rt(i));
 				S_df(nS)	= abs(fu(i) - fx(i));
 				X(:, i)		= U(:, i);
 				fx(i)		= fu(i);
-				FC(i)		= 0;
 				
 				if A_size < NP
 					A_size = A_size + 1;
@@ -350,6 +347,7 @@ while true
 				end
 				
 				FailedIteration = false;
+				FC(i)		= 0;
 			else
 				FC(i) = FC(i) + 1;
 			end
@@ -364,13 +362,12 @@ while true
 			if ((X_AND_U_IN_EPSILON || X_AND_U_EQUAL_EPSILON) && fu(i) < fx(i)) || ...
 					(~X_AND_U_IN_EPSILON && psai_u(i) < psai_x(i))
 
-				nS = nS + 1;
+				nS			= nS + 1;
 				S_CR(nS)	= CR(rt(i));
 				S_F(nS)		= F(rt(i));
 				S_df(nS)	= abs(fu(i) - fx(i));
 				X(:, i)		= U(:, i);
 				fx(i)		= fu(i);
-				FC(i)		= 0;
 				psai_x(i)	= psai_u(i);
 				
 				if A_size < NP
@@ -382,6 +379,7 @@ while true
 				end
 				
 				FailedIteration = false;
+				FC(i)		= 0;
 			else
 				FC(i) = FC(i) + 1;				
 			end
@@ -393,10 +391,7 @@ while true
 		w = S_df(1 : nS) ./ sum(S_df(1 : nS));
 		MCR(k) = sum(w .* S_CR(1 : nS));
 		MF(k) = sum(w .* S_F(1 : nS) .* S_F(1 : nS)) / sum(w .* S_F(1 : nS));
-		k = k + 1;
-		if k > H
-			k = 1;
-		end
+		k = mod(k, H) + 1;
 	end
 	
 	% Sort	
@@ -416,8 +411,8 @@ while true
 	% Record
 	out = updateoutput(out, X, fx, counteval, countiter, ...
 		'countcon', countcon, ...
-		'MF', MF, ...
-		'MCR', MCR, ...
+		'muMF', mean(MF), ...
+		'muMCR', mean(MCR), ...
 		'FC', FC);
 	
 	% Iteration counter
@@ -442,7 +437,7 @@ final.psai = psai_x;
 out = finishoutput(out, X, fx, counteval, countiter, ...
 	'countcon', countcon, ...
 	'final', final, ...
-	'MF', MF, ...
-	'MCR', MCR, ...
+	'muMF', mean(MF), ...
+	'muMCR', mean(MCR), ...
 	'FC', zeros(NP, 1));
 end

@@ -312,10 +312,7 @@ while true
 		end
 		
 		MF(k) = sum(w .* S_F(1 : nS) .* S_F(1 : nS)) / sum(w .* S_F(1 : nS));
-		k = k + 1;
-		if k > H
-			k = 1;
-		end
+		k = mod(k, H) + 1;
 	end
 	
 	% Sort

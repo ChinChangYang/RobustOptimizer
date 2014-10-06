@@ -24,15 +24,20 @@ close all;
 % solver = 'deglbin';
 % solver = 'shade_sps_eig_c';
 solver = 'lshade';
-fitfun = 'cec14_f6';
-D = 30;
+% solver = 'lshade_sps';
+% solver = 'shade_sps_a';
+fitfun = 'cec14_f10';
+D = 50;
 maxfunevals = D * 1e4;
 solverOptions.nonlcon = [];
-solverOptions.NP = 18 * D;
-solverOptions.Ar = 2.6;
-solverOptions.p = 0.11;
-solverOptions.H = 6;
-solverOptions.NPmin = '4';
+% solverOptions.NP = 18 * D;
+% solverOptions.NP = 5 * D;
+% solverOptions.Ar = 2.6;
+% solverOptions.p = 0.11;
+% solverOptions.H = 6;
+% solverOptions.NPmin = '4';
+% solverOptions.Q = 64;
+% solverOptions.R = 0.5;
 solverOptions.ftarget = 1e-8;
 solverOptions.Restart = 0;
 solverOptions.Display = 'off';
@@ -57,10 +62,10 @@ ub = 100 * ones(D, 1);
 % lb = zeros(20, 1);
 % ub = 4 * pi * ones(20, 1);
 % [lb, ub] = getlimit_messenger;
-solverOptions.initial.X = ...
-	repmat(lb, 1, solverOptions.NP) + ...
-	repmat(ub - lb, 1, solverOptions.NP) .* ...
-	lhsdesign(solverOptions.NP, D, 'iteration', 100)';
+% solverOptions.initial.X = ...
+% 	repmat(lb, 1, solverOptions.NP) + ...
+% 	repmat(ub - lb, 1, solverOptions.NP) .* ...
+% 	lhsdesign(solverOptions.NP, D, 'iteration', 100)';
 [xmin, fmin, out] = ...
     feval(solver, fitfun, lb, ub, maxfunevals, solverOptions);
 % fprintf('out.bestever.xmin = \n');
@@ -81,7 +86,7 @@ fprintf('fmin = %.4E\n', fmin);
 if isfield(out, 'stopflag')
 	fprintf('stopflag = %s\n', out.stopflag);
 end
-figure(2);
+figure;
 subplot(231);
 hold off;
 lowerBoundF = min([out.fmean, out.fmin]);
@@ -310,18 +315,18 @@ end
 
 if isfield(out, 'FC')
 	figure;
-	boxplot(out.FC, out.G, 'colors', 'k', 'plotstyle','compact');
+	boxplot(out.FC, out.fes, 'colors', 'k', 'plotstyle','compact');
 	title(sprintf('Solve %s by %s', fitfun, solver));
-	xlabel('Generation');
+	xlabel('FEs');
 	ylabel('Recent Consecutive Unsuccessful Trial Vectors');
 % 	print(sprintf('%s.tiff', fitfun), '-dtiff');
 end
 
 if isfield(out, 'FC')
 	figure;
-	plot(out.G, mean(out.FC));
+	plot(out.fes, mean(out.FC));
 	title(sprintf('Solve %s by %s', fitfun, solver));
-	xlabel('Generation');
+	xlabel('FEs');
 	ylabel('Recent Consecutive Unsuccessful Trial Vectors');
 % 	print(sprintf('%s.tiff', fitfun), '-dtiff');
 end
