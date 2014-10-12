@@ -151,12 +151,12 @@ else
 	psai_x = psai_x(SortingIndex);
 end
 
-% mu_F
+% MF
 if isempty(MF)
 	MF = options.F * ones(H, 1);
 end
 
-% mu_CR
+% MCR
 if isempty(MCR)
 	MCR = options.CR * ones(H, 1);
 end

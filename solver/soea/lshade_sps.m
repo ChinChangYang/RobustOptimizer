@@ -85,7 +85,8 @@ countiter = 1;
 countStagnation = 0;
 out = initoutput(RecordPoint, D, NP, maxfunevals, ...
 	'muMF', ...
-	'muMCR');
+	'muMCR', ...
+	'muFC');
 
 % Initialize contour data
 if isDisplayIter
@@ -127,12 +128,12 @@ end
 [fx, fidx] = sort(fx);
 X = X(:, fidx);
 
-% mu_F
+% MF
 if isempty(MF)
 	MF = options.F * ones(H, 1);
 end
 
-% mu_CR
+% MCR
 if isempty(MCR)
 	MCR = options.CR * ones(H, 1);
 end
@@ -163,7 +164,8 @@ end
 % Record
 out = updateoutput(out, X, fx, counteval, countiter, ...
 	'muMF', mean(MF), ...
-	'muMCR', mean(MCR));
+	'muMCR', mean(MCR), ...
+	'muFC', mean(FC));
 
 % Iteration counter
 countiter = countiter + 1;
@@ -214,11 +216,8 @@ while true
 			F(i) = MF(r(i)) + Chy(iChy);
 			iChy = mod(iChy, numel(Chy)) + 1;
 		end
-		
-		if F(i) > 1
-			F(i) = 1;
-		end
 	end
+	F(F > 1) = 1;
 	
 	% pbest
 	pbest = 1 + floor(max(2, round(p * NP)) * rand(1, NP));
@@ -242,10 +241,12 @@ while true
 		end
 		
 		if FC(i) <= Q
-			V(:, i) = X(:, i) + F(i) .* (X(:, pbest(i)) - X(:, i)) ...
+			V(:, i) = X(:, i) ...
+				+ F(i) .* (X(:, pbest(i)) - X(:, i)) ...
 				+ F(i) .* (X(:, r1) - XA(:, r2));
 		else
-			V(:, i) = SP(:, i) + F(i) .* (SP(:, sortidxfSP(pbest(i))) - SP(:, i)) ...
+			V(:, i) = SP(:, i) ...
+				+ F(i) .* (SP(:, sortidxfSP(pbest(i))) - SP(:, i)) ...
 				+ F(i) .* (SP(:, r1) - SPA(:, r2));
 		end
 	end
@@ -351,10 +352,7 @@ while true
 		end
 		
 		MF(k) = sum(w .* S_F(1 : nS) .* S_F(1 : nS)) / sum(w .* S_F(1 : nS));
-		k = k + 1;
-		if k > H
-			k = 1;
-		end
+		k = mod(k, H) + 1;
 	end
 	
 	% Sort
@@ -381,7 +379,8 @@ while true
 	% Record
 	out = updateoutput(out, X, fx, counteval, countiter, ...
 		'muMF', mean(MF), ...
-		'muMCR', mean(MCR));
+		'muMCR', mean(MCR), ...
+		'muFC', mean(FC));
 	
 	% Iteration counter
 	countiter = countiter + 1;
@@ -399,5 +398,6 @@ xmin = X(:, minindex);
 
 out = finishoutput(out, X, fx, counteval, countiter, ...
 	'muMF', mean(MF), ...
-	'muMCR', mean(MCR));
+	'muMCR', mean(MCR), ...
+	'muFC', mean(FC));
 end
