@@ -18,26 +18,34 @@ close all;
 % solver = 'rbde_sps';
 % solver = 'sade_sps';
 % solver = 'shade';
+% solver = 'shade_a';
+% solver = 'shade_b';
+% solver = 'shade_eig_a';
+% solver = 'shade_eig_b';
 % solver = 'shade_sps';
 % solver = 'shade_sps_eig';
+% solver = 'shade_sps_eig_e';
 % solver = 'shadeeig';
 % solver = 'deglbin';
-% solver = 'shade_sps_eig_c';
-solver = 'lshade';
+% solver = 'lshade';
 % solver = 'lshade_sps';
-% solver = 'shade_sps_a';
-fitfun = 'cec14_f10';
-D = 50;
+% solver = 'lshade_sps_a';
+% solver = 'lshade_sps_b';
+solver = 'lshade_sps_eig_g';
+fitfun = 'cec14_f8';
+D = 100;
 maxfunevals = D * 1e4;
 solverOptions.nonlcon = [];
-% solverOptions.NP = 18 * D;
+solverOptions.NP = 18 * D;
 % solverOptions.NP = 5 * D;
+solverOptions.CRmax = 0.1;
+solverOptions.ER = 0.5;
+solverOptions.cw = 0.2;
 % solverOptions.Ar = 2.6;
 % solverOptions.p = 0.11;
 % solverOptions.H = 6;
 % solverOptions.NPmin = '4';
-% solverOptions.Q = 64;
-% solverOptions.R = 0.5;
+solverOptions.Q = 16;
 solverOptions.ftarget = 1e-8;
 solverOptions.Restart = 0;
 solverOptions.Display = 'off';
@@ -369,6 +377,49 @@ if isfield(out, 'muMR')
 	title(sprintf('Solve %s by %s', fitfun, solver));
 	xlabel('FEs');
 	ylabel('muMR');
+end
+
+if isfield(out, 'muMF1')
+	figure;
+	plot(out.fes, out.muMF1, 'b');
+	title(sprintf('Solve %s by %s', fitfun, solver));
+	xlabel('FEs');
+	ylabel('muMF1');
+end
+
+if isfield(out, 'muMF2')
+	figure;
+	plot(out.fes, out.muMF2, 'b');
+	title(sprintf('Solve %s by %s', fitfun, solver));
+	xlabel('FEs');
+	ylabel('muMF2');
+end
+
+if isfield(out, 'muFC')
+	figure;
+	plot(out.fes, out.muFC);
+	title(sprintf('Solve %s by %s', fitfun, solver));
+	xlabel('FEs');
+	ylabel('Recent Consecutive Unsuccessful Trial Vectors');
+% 	print(sprintf('%s.tiff', fitfun), '-dtiff');
+end
+
+if isfield(out, 'deltaAng')
+	figure;
+	semilogy(out.fes, out.deltaAng);
+	title(sprintf('Solve %s by %s', fitfun, solver));
+	xlabel('FEs');
+	ylabel('Delta of Angles');
+% 	print(sprintf('%s.tiff', fitfun), '-dtiff');
+end
+
+if isfield(out, 'muMER')
+	figure;
+	plot(out.fes, out.muMER);
+	title(sprintf('Solve %s by %s', fitfun, solver));
+	xlabel('FEs');
+	ylabel('muMER');
+% 	print(sprintf('%s.tiff', fitfun), '-dtiff');
 end
 
 % toc(startTime);
