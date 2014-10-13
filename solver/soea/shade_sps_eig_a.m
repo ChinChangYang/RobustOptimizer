@@ -235,10 +235,11 @@ while true
 		jrand = floor(1 + D * rand);
 		
 		if rand < R
+			XT(:, i) = B' * X(:, i);
+			VT(:, i) = B' * V(:, i);
+			SPT(:, i) = B' * SP(:, i);
 			if FC(i) <= Q
 				% EIG Framework
-				XT(:, i) = B' * X(:, i);
-				VT(:, i) = B' * V(:, i);
 				for j = 1 : D
 					if rand < CR(i) || j == jrand
 						UT(j, i) = VT(j, i);
@@ -248,8 +249,6 @@ while true
 				end
 			else
 				% EIG+SPS Framework
-				XT(:, i) = B' * X(:, i);
-				SPT(:, i) = B' * SP(:, i);
 				for j = 1 : D
 					if rand < CR(i) || j == jrand
 						UT(j, i) = VT(j, i);
