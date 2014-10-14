@@ -9,11 +9,12 @@ T = 50;
 
 fmin_resum = zeros(1, nRuns);
 fmin_no_resum = zeros(1, nRuns);
-solver = 'debest1bin';
+solver = 'lshade_sps_eig_h';
 fitfun = 'bbob12_f1';
 D = 5;
 maxfunevals = D * 4e3;
 solverOptions.dimensionFactor = 5;
+solverOptions.NP = 5 * D;
 solverOptions.TolX = 100 * eps;
 solverOptions.TolFun = eps;
 solverOptions.Display = 'off';
@@ -24,33 +25,23 @@ ub = 5e50 * ones(D, 1);
 parfor iRuns = 1 : nRuns
 	% Solver with resuming
 	rng(iRuns, 'twister');
-	fes = 0;
+	resumeOptions = solverOptions;
+	resumeOptions.usefunevals = 1 / T * maxfunevals;
 	
 	[~, ~, out] = ...
-		feval(solver, fitfun, lb, ub, 1/T * maxfunevals, solverOptions);
+		feval(solver, fitfun, lb, ub, maxfunevals, resumeOptions);
 	
-	fes = fes + out.fes(end);
-	
-	for t = 1 : T-1
-		resumeOptions = solverOptions;
+	for t = 1 : T - 1	
 		resumeOptions.initial = out.final;
+		resumeOptions.usefunevals = (t + 1) / T * maxfunevals;
 		[~, fmin_resum(iRuns), out] = ...
-			feval(solver, fitfun, lb, ub, 1/T * maxfunevals, resumeOptions);
-	
-		fes = fes + out.fes(end);
+			feval(solver, fitfun, lb, ub, maxfunevals, resumeOptions);
 	end
-	
-	resumeOptions = solverOptions;
-	resumeOptions.initial = out.final;
-	[~, fmin_resum(iRuns), out] = ...
-		feval(solver, fitfun, lb, ub, maxfunevals - fes, resumeOptions);
-	
-	fes = fes + out.fes(end);
 		
 	% Solver without resuming
 	rng(iRuns, 'twister');
 	[~, fmin_no_resum(iRuns), ~] = ...
-		feval(solver, fitfun, lb, ub, fes, solverOptions);
+		feval(solver, fitfun, lb, ub, out.fes(end), solverOptions);
 	
 	fprintf('Run: %d, Done.\n', iRuns);
 end

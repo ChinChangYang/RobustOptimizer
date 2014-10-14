@@ -1,9 +1,9 @@
-function [xmin, fmin, out] = lshade_sps_eig_g(fitfun, lb, ub, maxfunevals, options)
-% LSHADE_SPS_EIG_G L-SHADE algorithm with SPS+EIG framework (variant G)
-% LSHADE_SPS_EIG_G(fitfun, lb, ub, maxfunevals) minimize the function fitfun in
+function [xmin, fmin, out] = lshade_sps_eig_h(fitfun, lb, ub, maxfunevals, options)
+% LSHADE_SPS_EIG_H L-SHADE algorithm with SPS+EIG framework (variant H)
+% LSHADE_SPS_EIG_H(fitfun, lb, ub, maxfunevals) minimize the function fitfun in
 % box constraints [lb, ub] with the maximal function evaluations
 % maxfunevals.
-% LSHADE_SPS_EIG_G(..., options) minimize the function by solver options.
+% LSHADE_SPS_EIG_H(..., options) minimize the function by solver options.
 if nargin <= 4
 	options = [];
 end
@@ -22,13 +22,25 @@ defaultOptions.Display = 'off';
 defaultOptions.RecordPoint = 100;
 defaultOptions.ftarget = -Inf;
 defaultOptions.TolStagnationIteration = Inf;
+defaultOptions.usefunevals = inf;
 defaultOptions.initial.X = [];
 defaultOptions.initial.f = [];
 defaultOptions.initial.A = [];
+defaultOptions.initial.nA = [];
 defaultOptions.initial.MER = [];
 defaultOptions.initial.MCR = [];
 defaultOptions.initial.MF = [];
 defaultOptions.initial.psai = [];
+defaultOptions.initial.iM = [];
+defaultOptions.initial.FC = [];
+defaultOptions.initial.C = [];
+defaultOptions.initial.SP = [];
+defaultOptions.initial.fSP = [];
+defaultOptions.initial.iSP = [];
+defaultOptions.initial.counteval = [];
+defaultOptions.initial.countiter = [];
+defaultOptions.initial.countstagnation = [];
+defaultOptions.initial.countcon = [];
 defaultOptions.ConstraintHandling = 'Interpolation';
 defaultOptions.EpsilonValue = 0;
 defaultOptions.nonlcon = [];
@@ -41,7 +53,10 @@ CRmax = options.CRmax;
 Q = options.Q;
 cw = options.cw;
 Ar = options.Ar;
+NPinit = options.NP;
+cwinit = options.cw;
 NPmin = eval(options.NPmin);
+usefunevals = options.usefunevals;
 isDisplayIter = strcmp(options.Display, 'iter');
 RecordPoint = max(0, floor(options.RecordPoint));
 ftarget = options.ftarget;
@@ -74,21 +89,43 @@ end
 
 if ~isempty(options.initial)
 	options.initial = setdefoptions(options.initial, defaultOptions.initial);
-	X = options.initial.X;
-	fx = options.initial.f;
-	A = options.initial.A;
-	MER = options.initial.MER;
-	MF = options.initial.MF;
-	MCR = options.initial.MCR;
-	psai_x = options.initial.psai;
+	X		= options.initial.X;
+	fx		= options.initial.f;
+	A		= options.initial.A;
+	nA		= options.initial.nA;
+	MER		= options.initial.MER;
+	MF		= options.initial.MF;
+	MCR		= options.initial.MCR;
+	psai_x	= options.initial.psai;
+	iM		= options.initial.iM;
+	FC		= options.initial.FC;
+	C		= options.initial.C;
+	SP		= options.initial.SP;
+	fSP		= options.initial.fSP;
+	iSP		= options.initial.iSP;
+	counteval = options.initial.counteval;
+	countiter = options.initial.countiter;
+	countstagnation = options.initial.countstagnation;
+	countcon = options.initial.countcon;
 else
-	X = [];
-	fx = [];
-	A = [];
-	MER = [];
-	MF = [];
-	MCR = [];
-	psai_x = [];
+	X		= [];
+	fx		= [];
+	A		= [];
+	nA		= [];
+	MER		= [];
+	MF		= [];
+	MCR		= [];
+	psai_x	= [];
+	iM		= [];
+	FC		= [];
+	C		= [];
+	SP		= [];
+	fSP		= [];
+	iSP		= [];
+	counteval = [];
+	countiter = [];
+	countstagnation = [];
+	countcon = [];
 end
 
 D = numel(lb);
@@ -99,10 +136,6 @@ else
 end
 
 % Initialize variables
-counteval = 0;
-countiter = 1;
-countStagnation = 0;
-countcon = 0;
 out = initoutput(RecordPoint, D, NP, maxfunevals, ...
 	'countcon', ...
 	'muMF', ...
@@ -113,6 +146,26 @@ out = initoutput(RecordPoint, D, NP, maxfunevals, ...
 % Initialize contour data
 if isDisplayIter
 	[XX, YY, ZZ] = advcontourdata(D, lb, ub, fitfun);
+end
+
+% counteval
+if isempty(counteval)
+	counteval = 0;
+end
+
+% countiter
+if isempty(countiter)
+	countiter = 1;
+end
+
+% countstagnation
+if isempty(countstagnation)
+	countstagnation = 0;
+end
+
+% countcon
+if isempty(countcon)
+	countcon = 0;
 end
 
 % Initialize population
@@ -155,11 +208,24 @@ if isempty(A)
 	for i = 1 : Asize
 		A(:, i) = lb + (ub - lb) .* rand(D, 1);
 	end
-	nA = 0;
 else
 	[~, Asize] = size(A);
-	Ar = Asize / NP;
-	nA = Asize;
+	if Asize > round(Ar * NP)
+		Asize = round(Ar * NP);
+		A = A(:, 1 : Asize);
+	elseif Asize < round(Ar * NP)
+		Asize = round(Ar * NP);
+		A = zeros(D, Asize);
+		for i = 1 : Asize
+			A(:, i) = lb + (ub - lb) .* rand(D, 1);
+		end
+	end
+end
+
+if isempty(nA)
+	nA = 0;
+else
+	nA = min(nA, Asize);
 end
 
 % Sort
@@ -188,26 +254,51 @@ end
 if isempty(MER)
 	MER = options.ER * ones(H, 1);
 end
+
+% iM
+if isempty(iM)
+	iM = 1;
+end
+
+% FC
+if isempty(FC)
+	FC = zeros(1, NP);		% Consecutive Failure Counter
+end
+
+% C
+if isempty(C)
+	C = cov(X');
+end
+
+% SP and fSP
+if isempty(SP)
+	SP = X;
+	fSP = fx;
+elseif isempty(fSP)
+	fSP = zeros(1, NP);
+	for i = 1 : NP
+		fSP(i) = feval(fitfun, SP(:, i));
+		counteval = counteval + 1;
+	end
+end
+
+% iSP
+if isempty(iSP)
+	iSP = 1;
+end
+
 % Initialize variables
 V = X;
 U = X;
-k = 1;
 fu = zeros(1, NP);
 S_ER = zeros(1, NP);	% Set of EIG rate
 S_F = zeros(1, NP);		% Set of scaling factor
 S_CR = zeros(1, NP);	% Set of crossover rate
 S_df = zeros(1, NP);	% Set of df
-FC = zeros(1, NP);		% Consecutive Failure Counter
 Chy = cauchyrnd(0, 0.1, NP + 10);
 iChy = 1;
 psai_u = zeros(1, NP);
-C = cov(X');
-SP = X;
-fSP = fx;
-iSP = 1;
 [~, sortidxfSP] = sort(fSP);
-NPinit = NP;
-cwinit = cw;
 
 % Display
 if isDisplayIter
@@ -223,14 +314,12 @@ out = updateoutput(out, X, fx, counteval, countiter, ...
 	'muMER', mean(MER), ...
 	'muFC', mean(FC));
 
-% Iteration counter
-countiter = countiter + 1;
-
 while true
 	% Termination conditions
 	outofmaxfunevals = counteval > maxfunevals - NP;
+	outofusefunevals = counteval > usefunevals - NP;
 	if ~EarlyStopOnFitness && ~AutoEarlyStop
-		if outofmaxfunevals
+		if outofmaxfunevals || outofusefunevals
 			break;
 		end
 	elseif AutoEarlyStop
@@ -239,7 +328,7 @@ while true
 		solutionconvergence = std(X(:)) <= TolX;
 		TolFun = 10 * eps(mean(fx));
 		functionvalueconvergence = std(fx(:)) <= TolFun;
-		stagnation = countStagnation >= TolStagnationIteration;
+		stagnation = countstagnation >= TolStagnationIteration;
 		
 		if outofmaxfunevals || ...
 				reachftarget || ...
@@ -256,6 +345,9 @@ while true
 			break;
 		end
 	end
+	
+	% Iteration counter
+	countiter = countiter + 1;
 	
 	% Memory Indices
 	r = floor(1 + H * rand(1, NP));
@@ -499,23 +591,23 @@ while true
 		w = S_df(1 : nS) ./ sum(S_df(1 : nS));
 		
 		if all(S_ER(1 : nS) == 0)
-			MER(k) = 0;
+			MER(iM) = 0;
 		else
-			MER(k) = sum(w .* S_ER(1 : nS));
-			MER(k) = max(-1, MER(k));
-			MER(k) = min(2, MER(k));
+			MER(iM) = sum(w .* S_ER(1 : nS));
+			MER(iM) = max(-1, MER(iM));
+			MER(iM) = min(2, MER(iM));
 		end
 		
 		if all(S_CR(1 : nS) == 0)
-			MCR(k) = 0;
+			MCR(iM) = 0;
 		else
-			MCR(k) = sum(w .* S_CR(1 : nS));
-			MCR(k) = max(-1, MCR(k));
-			MCR(k) = min(CRmax, MCR(k));
+			MCR(iM) = sum(w .* S_CR(1 : nS));
+			MCR(iM) = max(-1, MCR(iM));
+			MCR(iM) = min(CRmax, MCR(iM));
 		end
 		
-		MF(k) = sum(w .* S_F(1 : nS) .* S_F(1 : nS)) / sum(w .* S_F(1 : nS));		
-		k = mod(k, H) + 1;
+		MF(iM) = sum(w .* S_F(1 : nS) .* S_F(1 : nS)) / sum(w .* S_F(1 : nS));		
+		iM = mod(iM, H) + 1;
 	end
 	
 	% Update cw
@@ -542,6 +634,7 @@ while true
     Asize = round(Ar * NP);	
 	if nA > Asize
 		nA = Asize;
+		A = A(:, 1 : Asize);
 	end
     FC = FC(1 : NP);
 	[~, sortidxfSP] = sort(fSP);    
@@ -564,32 +657,44 @@ while true
 	
 	% Stagnation iteration
 	if FailedIteration
-		countStagnation = countStagnation + 1;
+		countstagnation = countstagnation + 1;
 	else
-		countStagnation = 0;
+		countstagnation = 0;
 	end
 end
 
 fmin = fx(1);
 xmin = X(:, 1);
 
-% final.A = A;
-% final.MER = MER;
-% final.MF = MF;
-% final.psai = psai_x;
-
-% out = finishoutput(out, X, fx, counteval, countiter, ...
-% 	'countcon', countcon, ...
-% 	'final', final, ...
-% 	'muMF', mean(MF), ...
-% 	'muMCR', mean(MCR), ...
-% 	'muMER', mean(MER), ...
-% 	'muFC', mean(FC));
+final.A			= A;
+final.nA		= nA;
+final.MER		= MER;
+final.MCR		= MCR;
+final.MF		= MF;
+final.psai		= psai_x;
+final.iM		= iM;
+final.FC		= FC;
+final.C			= C;
+final.SP		= SP;
+final.fSP		= fSP;
+final.iSP		= iSP;
+final.counteval = counteval;
+final.countiter = countiter;
+final.countstagnation = countstagnation;
+final.countcon	= countcon;
 
 out = finishoutput(out, X, fx, counteval, countiter, ...
 	'countcon', countcon, ...
+	'final', final, ...
 	'muMF', mean(MF), ...
 	'muMCR', mean(MCR), ...
 	'muMER', mean(MER), ...
 	'muFC', mean(FC));
+
+% out = finishoutput(out, X, fx, counteval, countiter, ...
+% 	'countcon', countcon, ...
+% 	'muMF', mean(MF), ...
+% 	'muMCR', mean(MCR), ...
+% 	'muMER', mean(MER), ...
+% 	'muFC', mean(FC));
 end
