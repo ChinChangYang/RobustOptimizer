@@ -9,9 +9,9 @@ T = 50;
 
 fmin_resum = zeros(1, nRuns);
 fmin_no_resum = zeros(1, nRuns);
-solver = 'lshade_sps_eig_h';
+solver = 'cmaes';
 fitfun = 'bbob12_f1';
-D = 5;
+D = 10;
 maxfunevals = D * 4e3;
 solverOptions.dimensionFactor = 5;
 solverOptions.NP = 5 * D;

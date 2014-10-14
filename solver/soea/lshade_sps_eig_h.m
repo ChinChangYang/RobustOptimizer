@@ -652,9 +652,6 @@ while true
 		'muMER', mean(MER), ...
 		'muFC', mean(FC));
 	
-	% Iteration counter
-	countiter = countiter + 1;
-	
 	% Stagnation iteration
 	if FailedIteration
 		countstagnation = countstagnation + 1;
