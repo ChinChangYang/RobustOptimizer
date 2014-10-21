@@ -1,17 +1,18 @@
 function run_complete_cec14_all
-measureOptions.Dimension = 30;
+measureOptions.Dimension = 50;
 measureOptions.Runs = 28;
 measureOptions.MaxFunEvals = measureOptions.Dimension * 1e4;
 
-solver = 'lshade_sps_eig_g';
-NP = [8, 11, 14] .* measureOptions.Dimension;
+solver = 'lshade_sps_eig_j';
+NP = [12, 15, 18] .* measureOptions.Dimension;
 Q = 64;
 NPmin = {'4'};
 F = 0.5;
 solverOptions.CR = 0.5;
 H = 6;
-CRmax = [0.2, 0.3, 0.4];
-cw = [0.3, 0.4, 0.5];
+CRmax = [0.3, 0.5, 0.7];
+cw = 0.3;
+CRmin = [0.0, 0.05, 0.1];
 
 if matlabpool('size') == 0
 	matlabpool('open');
@@ -29,6 +30,7 @@ for i = 1 : numel(NP)
 				for p = 1 : numel(H)
 					for q = 1 : numel(CRmax)
 						for r = 1 : numel(cw)
+							for s = 1 : numel(CRmin)
 							solverOptions.NP = NP(i);
 							solverOptions.Q = Q(j);
 							solverOptions.NPmin = NPmin{k};
@@ -36,6 +38,7 @@ for i = 1 : numel(NP)
 							solverOptions.H = H(p);
 							solverOptions.CRmax = CRmax(q);
 							solverOptions.cw = cw(r);
+							solverOptions.CRmin = CRmin(s);
 							
 							innerdate = datestr(now, 'yyyymmddHHMMSS');
 							startTime = tic;
