@@ -3,6 +3,7 @@ load(metafilename);
 filenames_o = filenames;
 nA = numel(filenames_o);
 load(filenames_o{1});
+[~, nf] = size(allout);
 
 D					= measureOptions.Dimension;
 tablefilename		= sprintf('CEC14_D%d_TABLE.xlsx', D);
@@ -10,6 +11,7 @@ convfilename		= sprintf('CEC14_D%d_CONV.xlsx', D);
 contfilename		= sprintf('CEC14_D%d_CONT.xlsx', D);
 
 meansuccrates			= zeros(1, nA);
+errmeanall				= zeros(nf, nA);
 
 for i = 1 : nA
 	[solver, errmean, errstd, succrate, compcomplex, errmedian, ...
@@ -30,14 +32,30 @@ for i = 1 : nA
 	xlswrite(contfilename, distancemedian, solver, 'A2:U31');
 	
 	meansuccrates(i) = mean(succrate);
+	errmeanall(:, i) = errmean;
 	fprintf('%d -- Mean Succ. Rate: %.2f%%\n', i, 100 * meansuccrates(i));
 end
 
+% Normalize Mean Error
+normerrmean = zeros(nf, nA);
+for i = 1 : nf
+	for j = 1 : nA
+		normerrmean(i, j) = ...
+			(errmeanall(i, j) - min(errmeanall(i, :)) + eps) ...
+			./ (max(errmeanall(i, :)) - min(errmeanall(i, :)) + eps);
+	end
+end
+meanerrmean = mean(normerrmean);
+
 fprintf('-- Sorting --\n');
-[meansuccrates, index] = sort(meansuccrates);
+[meanerrmean, index] = sort(meanerrmean);
+meansuccrates = meansuccrates(index);
 
 for i = 1 : nA
-	fprintf('%d -- Mean Succ. Rate: %.2f%%\n', index(i), 100 * meansuccrates(i));
+	fprintf('%d -- Mean Succ. Rate: %.2f%% (%.2f)\n', ...
+		index(i), ...
+		100 * meansuccrates(i), ...
+		meanerrmean(i));
 end
 
 fprintf('%s: OK!\n', tablefilename);
