@@ -31,25 +31,32 @@ close all;
 % solver = 'lshade_sps';
 % solver = 'lshade_sps_a';
 % solver = 'lshade_sps_b';
-solver = 'lshade_sps_eig_g';
-fitfun = 'cec14_f8';
-D = 100;
+% solver = 'lshade_sps_eig_j';
+% solver = 'cmaes';
+solver = 'umoeas_a';
+fitfun = 'cec14_f13';
+D = 30;
 maxfunevals = D * 1e4;
 solverOptions.nonlcon = [];
-solverOptions.NP = 18 * D;
-% solverOptions.NP = 5 * D;
-solverOptions.CRmax = 0.1;
-solverOptions.ER = 0.5;
-solverOptions.cw = 0.2;
+% solverOptions.NP = 4 + floor(3 * log(D));
+solverOptions.NP = 12 * D;
+solverOptions.NP1 = 12 * D;
+% solverOptions.CR = 0.5;
+% solverOptions.ER = 1.0;
+% solverOptions.cw = 0.3;
+% solverOptions.erw = 0.2;
+% solverOptions.CRmin = 0.0;
+% solverOptions.CRmax = 0.5;
+% solverOptions.F = 1.0;
 % solverOptions.Ar = 2.6;
 % solverOptions.p = 0.11;
 % solverOptions.H = 6;
 % solverOptions.NPmin = '4';
-solverOptions.Q = 16;
+solverOptions.Q = 64;
 solverOptions.ftarget = 1e-8;
 solverOptions.Restart = 0;
 solverOptions.Display = 'off';
-solverOptions.RecordPoint = 201;
+% solverOptions.RecordPoint = 201;
 solverOptions.Noise = false;
 solverOptions.EarlyStop = 'fitness';
 % solverOptions.ConstraintHandling = 'none';
@@ -133,11 +140,13 @@ xlabel('FEs');
 title('Std. of X solutions');
 subplot(235);
 hold off;
-if solverOptions.Noise
-	loglog(out.fes, out.distancemean);
-else
-	semilogy(out.fes, out.distancemean);
-end
+% if isfield(out, 'distancemean')
+% 	if solverOptions.Noise
+% 		loglog(out.fes, out.distancemean);
+% 	else
+% 		semilogy(out.fes, out.distancemean);
+% 	end
+% end
 xlabel('FEs');
 title('Mean of distances between the target vectors and the centroid');
 subplot(236);
