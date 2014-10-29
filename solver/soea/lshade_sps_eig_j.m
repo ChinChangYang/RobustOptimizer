@@ -8,7 +8,7 @@ if nargin <= 4
 	options = [];
 end
 
-defaultOptions.NP = 540;
+defaultOptions.NP = 600;
 defaultOptions.F = 0.5;
 defaultOptions.CR = 0.5;
 defaultOptions.ER = 1.0;
@@ -18,8 +18,8 @@ defaultOptions.Q = 64;
 defaultOptions.Ar = 2.6;
 defaultOptions.cw = 0.3;
 defaultOptions.erw = 0.2;
-defaultOptions.CRmin = 0.0;
-defaultOptions.CRmax = 0.5;
+defaultOptions.CRmin = 0.05;
+defaultOptions.CRmax = 0.3;
 defaultOptions.NPmin = '4';
 defaultOptions.Display = 'off';
 defaultOptions.RecordPoint = 100;

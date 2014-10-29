@@ -145,6 +145,7 @@ else
 end
 mu = floor(0.5 * NP2);
 w = log(mu + 0.5) - log(1 : mu)';
+w = w / sum(w);
 resumeOptions1 = options;
 resumeOptions1.NP = options.NP1;
 resumeOptions1.EarlyStop = 'none';
@@ -157,6 +158,8 @@ resumeOptions2.EarlyStop = 'none';
 resumeOptions2.usefunevals = max(NP1, NP2);
 resumeOptions2.RecordPoint = 0;
 resumeOptions2.initial.counteval = 0;
+out1.final.counteval = 0;
+out2.final.counteval = 0;
 
 % Display
 if isDisplayIter
@@ -260,7 +263,12 @@ while true
 	if countiter < CS || bestSolver == 1
 		% Evolve population 1 using multi-operator DE.
 		[~, ~, out1] = ...
-			lshade_sps_eig_j(fitfun, lb, ub, maxfunevals, resumeOptions1);
+			lshade_sps_eig_j(...
+			fitfun, ...
+			lb, ...
+			ub, ...
+			maxfunevals - counteval + out1.final.counteval, ...
+			resumeOptions1);
 		
 		X1 = out1.final.X;
 		fx1 = out1.final.f;
@@ -275,7 +283,12 @@ while true
 	if countiter < CS || bestSolver == 2
 		% Evolve population 2 using multi-operator ES.
 		[~, ~, out2] = ...
-			cmaes(fitfun, lb, ub, maxfunevals, resumeOptions2);
+			cmaes(...
+			fitfun, ...
+			lb, ...
+			ub, ...
+			maxfunevals - counteval + out2.final.counteval, ...
+			resumeOptions2);
 		
 		X2 = out2.final.X;
 		fx2 = out2.final.f;
