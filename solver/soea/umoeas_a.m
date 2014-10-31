@@ -10,6 +10,7 @@ end
 
 defaultOptions.NP1 = 600;
 defaultOptions.NP2 = 100;
+defaultOptions.CS = 100;
 defaultOptions.Display = 'off';
 defaultOptions.RecordPoint = 100;
 defaultOptions.ftarget = -Inf;
@@ -26,6 +27,7 @@ defaultOptions.nonlcon = [];
 defaultOptions.EarlyStop = 'none';
 
 options = setdefoptions(options, defaultOptions);
+CS = options.CS;
 usefunevals = options.usefunevals;
 isDisplayIter = strcmp(options.Display, 'iter');
 RecordPoint = max(0, floor(options.RecordPoint));
@@ -130,11 +132,6 @@ X2 = X2(:, fidx2);
 
 % Initialize variables
 bestSolver = 1;
-if D == 10
-	CS = 50;
-else
-	CS = 100;
-end
 success = zeros(CS, 2);
 if fx1(1) < fx2(1)
 	fmin = fx1(1);
@@ -151,12 +148,14 @@ resumeOptions1.NP = options.NP1;
 resumeOptions1.EarlyStop = 'none';
 resumeOptions1.usefunevals = max(NP1, NP2);
 resumeOptions1.RecordPoint = 0;
+resumeOptions1.initial.X = X1;
 resumeOptions1.initial.counteval = 0;
 resumeOptions2 = options;
 resumeOptions2.NP = options.NP2;
 resumeOptions2.EarlyStop = 'none';
 resumeOptions2.usefunevals = max(NP1, NP2);
 resumeOptions2.RecordPoint = 0;
+resumeOptions2.initial.X = X2;
 resumeOptions2.initial.counteval = 0;
 out1.final.counteval = 0;
 out2.final.counteval = 0;

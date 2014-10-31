@@ -109,11 +109,17 @@ else
 	qmediansum	= reshape(qmediansum, nprogress, nfuncs)';
 end
 distance	= zeros(nruns, nprogress, nfuncs);
+
 for j = 1 : nfuncs
 	for k = 1 : nruns
-		distance(k, :, j) = allout{k, j}.distancemean;
+		if isfield(allout{k, j}, 'distancemean')
+			if ~isempty(allout{k, j}.distancemean)
+				distance(k, :, j) = allout{k, j}.distancemean;
+			end
+		end
 	end
 end
+
 distancesorted = distance;
 for j = 1 : nfuncs
 	distancesorted(:, :, j) = distance(sortindices(:, :, j), :, j);
