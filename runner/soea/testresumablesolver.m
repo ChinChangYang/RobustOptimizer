@@ -9,7 +9,7 @@ T = 50;
 
 fmin_resum = zeros(1, nRuns);
 fmin_no_resum = zeros(1, nRuns);
-solver = 'cmaes';
+solver = 'lshade_sps';
 fitfun = 'bbob12_f1';
 D = 10;
 maxfunevals = D * 4e3;

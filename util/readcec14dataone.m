@@ -12,12 +12,14 @@ contfilename		= sprintf('CEC14_D%d_CONT.xlsx', D);
 
 meansuccrates			= zeros(1, nA);
 errmeanall				= zeros(nf, nA);
+solvers					= cell(1, nA);
 
 for i = 1 : nA
 	[solver, errmean, errstd, succrate, compcomplex, errmedian, ...
 		~, distancemedian, fes, G, ~] = ...
 		readonedata(filenames_o{i}); %#ok<ASGLU>
 	
+	solvers{i} = solver;
 	solver = sprintf('%d.%s', i, solver);
 	xlswrite(tablefilename, {solver}, solver, 'A1');
 	xlswrite(tablefilename, {'Mean'}, solver, 'A2');
@@ -48,14 +50,16 @@ end
 meanerrmean = mean(normerrmean);
 
 fprintf('-- Sorting --\n');
-[meanerrmean, index] = sort(meanerrmean);
-meansuccrates = meansuccrates(index);
+[~, index] = sort(meanerrmean);
 
 for i = 1 : nA
-	fprintf('%d -- Mean Succ. Rate: %.2f%% (%.2f)\n', ...
+	% Rank 1 (No. 4): lshade_sps; SUCC: 26.43%; NSE: 0.39;
+	fprintf('Rank %d (No. %d): %s; SUCC: %.2f%%; NSE: %.2f\n', ...
+		i, ...
 		index(i), ...
-		100 * meansuccrates(i), ...
-		meanerrmean(i));
+		solvers{index(i)}, ...
+		100 * meansuccrates(index(i)), ...
+		meanerrmean(index(i)));
 end
 
 fprintf('%s: OK!\n', tablefilename);

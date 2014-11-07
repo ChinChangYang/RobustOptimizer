@@ -32,21 +32,27 @@ close all;
 % solver = 'lshade_sps_a';
 % solver = 'lshade_sps_b';
 % solver = 'lshade_sps_eig_j';
+% solver = 'lshade_sps_eig_k';
 % solver = 'cmaes';
-solver = 'umoeas_a';
-fitfun = 'cec14_f13';
+% solver = 'umoeas_a';
+% solver = 'umoeas_b';
+solver = 'umoeas_c';
+fitfun = 'cec14_f1';
 D = 30;
 maxfunevals = D * 1e4;
 solverOptions.nonlcon = [];
 % solverOptions.NP = 4 + floor(3 * log(D));
-solverOptions.NP = 12 * D;
-solverOptions.NP1 = 12 * D;
+% solverOptions.NP = 9 * D;
+solverOptions.NP1 = 10 * D;
+solverOptions.NP2 = 5 * D;
+solverOptions.CS = 50;
+solverOptions.MixStageFactor = 0.1;
 % solverOptions.CR = 0.5;
 % solverOptions.ER = 1.0;
 % solverOptions.cw = 0.3;
 % solverOptions.erw = 0.2;
-% solverOptions.CRmin = 0.0;
-% solverOptions.CRmax = 0.5;
+% solverOptions.CRmin = 0.05;
+% solverOptions.CRmax = 0.3;
 % solverOptions.F = 1.0;
 % solverOptions.Ar = 2.6;
 % solverOptions.p = 0.11;
@@ -428,6 +434,24 @@ if isfield(out, 'muMER')
 	title(sprintf('Solve %s by %s', fitfun, solver));
 	xlabel('FEs');
 	ylabel('muMER');
+% 	print(sprintf('%s.tiff', fitfun), '-dtiff');
+end
+
+if isfield(out, 'xstd1')
+	figure;
+	semilogy(out.fes, out.xstd1);
+	title(sprintf('Solve %s by %s', fitfun, solver));
+	xlabel('FEs');
+	ylabel('xstd1');
+% 	print(sprintf('%s.tiff', fitfun), '-dtiff');
+end
+
+if isfield(out, 'xstd2')
+	figure;
+	semilogy(out.fes, out.xstd2);
+	title(sprintf('Solve %s by %s', fitfun, solver));
+	xlabel('FEs');
+	ylabel('xstd2');
 % 	print(sprintf('%s.tiff', fitfun), '-dtiff');
 end
 

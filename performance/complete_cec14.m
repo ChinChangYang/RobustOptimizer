@@ -45,6 +45,7 @@ defaultSolverOptions.RecordPoint = 21;
 defaultSolverOptions.ftarget = 1e-8;
 defaultSolverOptions.TolX = 0;
 defaultSolverOptions.TolStagnationIteration = Inf;
+defaultSolverOptions.EarlyStop = 'fitness';
 
 solverOptions = setdefoptions(solverOptions, defaultSolverOptions);
 solverOptions.initial.X = ...
