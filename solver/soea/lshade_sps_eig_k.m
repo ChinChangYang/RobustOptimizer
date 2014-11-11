@@ -176,7 +176,7 @@ if isempty(countcon)
 	countcon = 0;
 end
 
-% countcon
+% strategy
 if isempty(strategy)
 	strategy = 'initial';
 end

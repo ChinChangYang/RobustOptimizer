@@ -140,7 +140,7 @@ end
 % Evaluation
 if isempty(fx)
 	fx = zeros(1, NP);
-	for i = 1 : NP
+	parfor i = 1 : NP
 		fx(i) = feval(fitfun, X(:, i));
 		counteval = counteval + 1;
 	end
@@ -203,7 +203,7 @@ if isempty(SP)
 	fSP = fx;
 elseif isempty(fSP)
 	fSP = zeros(1, NP);
-	for i = 1 : NP
+	parfor i = 1 : NP
 		fSP(i) = feval(fitfun, SP(:, i));
 		counteval = counteval + 1;
 	end
@@ -254,6 +254,7 @@ while true
 		stagnation = countstagnation >= TolStagnationIteration;
 		
 		if outofmaxfunevals || ...
+				outofusefunevals || ...
 				reachftarget || ...
 				solutionconvergence || ...
 				functionvalueconvergence || ...
@@ -264,6 +265,7 @@ while true
 		reachftarget = min(fx) <= ftarget;
 		
 		if outofmaxfunevals || ...
+				outofusefunevals || ...
 				reachftarget
 			break;
 		end
@@ -374,7 +376,7 @@ while true
 	end
 	
 	% Evaluation
-	for i = 1 : NP
+	parfor i = 1 : NP
 		fu(i) = feval(fitfun, U(:, i));
 		counteval = counteval + 1;
 	end
