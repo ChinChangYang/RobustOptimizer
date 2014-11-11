@@ -26,7 +26,7 @@ defaultOptions.initial.pc = [];
 defaultOptions.initial.sigma = [];
 defaultOptions.initial.counteval = [];
 defaultOptions.initial.countiter = [];
-defaultOptions.ConstraintHandling = 'Interpolation';
+defaultOptions.ConstraintHandling = 'OnBound';
 defaultOptions.EarlyStop = 'none';
 
 options = setdefoptions(options, defaultOptions);
@@ -36,10 +36,10 @@ isDisplayIter = strcmp(options.Display, 'iter');
 RecordPoint = max(0, floor(options.RecordPoint));
 ftarget = options.ftarget;
 
-if isequal(options.ConstraintHandling, 'Interpolation')
-	interpolation = true;
+if isequal(options.ConstraintHandling, 'OnBound')
+	onbound = true;
 else
-	interpolation = false;
+	onbound = false;
 end
 
 if ~isempty(strfind(options.EarlyStop, 'fitness'))
@@ -166,12 +166,31 @@ while true
 	% Generate population
 	Z = randn(D, NP);
 	X = repmat(m, 1, NP) + sigma * BD * Z;
+	XVALID = X;
+	
+	% Correction for outside of boundaries	
+	if onbound
+		for i = 1 : NP
+			for j = 1 : D
+				if XVALID(j, i) < lb(j)
+					XVALID(j, i) = lb(j);
+				elseif XVALID(j, i) > ub(j)
+					XVALID(j, i) = ub(j);
+				end
+			end
+		end
+	end
 	
 	% Evaluation
 	fx = zeros(1, NP);
 	for i = 1 : NP
-		fx(i) = feval(fitfun, X(:, i));
+		fx(i) = feval(fitfun, XVALID(:, i));
 		counteval = counteval + 1;
+	end
+	
+	for i = 1 : NP		
+		penalty = 1e10 * std(fx) * norm(XVALID(:, i) - X(:, i));
+		fx(i) = fx(i) + penalty;
 	end
 	
 	% Sort	
@@ -226,12 +245,12 @@ while true
 	BD = B .* repmat(diagD', D, 1);
 	
 	% Correction for outside of boundaries	
-	if interpolation
+	if onbound
 		for j = 1 : D
 			if m(j) < lb(j)
-				m(j) = 0.5 * (lb(j) + mold(j));
+				m(j) = lb(j);
 			elseif m(j) > ub(j)
-				m(j) = 0.5 * (ub(j) + mold(j));
+				m(j) = ub(j);
 			end
 		end
 	end

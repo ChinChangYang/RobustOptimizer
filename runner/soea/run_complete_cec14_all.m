@@ -1,14 +1,15 @@
 function run_complete_cec14_all
 close all;
-measureOptions.Dimension = 30;
+measureOptions.Dimension = 10;
 measureOptions.Runs = 28;
 measureOptions.MaxFunEvals = measureOptions.Dimension * 1e4;
 
 % solver = 'umoeas_b';
 % solver = 'lshade_sps';
 % solver = 'lshade_sps_eig_k';
-solver = 'umoeas_c';
-NP1 = 10 .* measureOptions.Dimension;
+% solver = 'umoeas_c';
+solver = 'moeas_a';
+NP1 = 19 .* measureOptions.Dimension;
 NP2 = 5 .* measureOptions.Dimension;
 Q = 64;
 NPmin = {'4'};
@@ -20,7 +21,7 @@ CRmin = 0.05;
 CS = 50;
 MixStageFactor = 0.1;
 solverOptions.CR = 0.5;
-solverOptions.NP = 11 .* measureOptions.Dimension;
+solverOptions.NP = 19 .* measureOptions.Dimension;
 
 if matlabpool('size') == 0
 	matlabpool('open');
