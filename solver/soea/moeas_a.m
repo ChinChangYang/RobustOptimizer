@@ -126,6 +126,7 @@ if innerOut.muFC(end) <= TQ
 	resumeOptions = options;
 	resumeOptions.NP = options.NP2;
 	resumeOptions.EarlyStop = 'fitness';
+	resumeOptions.ConstraintHandling = 'OnBound';
 	resumeOptions.initial.counteval = innerOut.final.counteval;
 end
 

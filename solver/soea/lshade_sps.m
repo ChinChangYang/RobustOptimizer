@@ -17,6 +17,7 @@ defaultOptions.H = 6;
 defaultOptions.NPmin = '4';
 defaultOptions.Q = 64;
 defaultOptions.Display = 'off';
+defaultOptions.Plotting = 'off';
 defaultOptions.RecordPoint = 100;
 defaultOptions.ftarget = -Inf;
 defaultOptions.TolStagnationIteration = Inf;
@@ -46,7 +47,8 @@ NPmin = eval(options.NPmin);
 Q = options.Q;
 NPinit = options.NP;
 usefunevals = options.usefunevals;
-isDisplayIter = strcmp(options.Display, 'iter');
+isDisplayIter = isequal(options.Display, 'iter');
+isPlotting = isequal(options.Plotting, 'iter');
 RecordPoint = max(0, floor(options.RecordPoint));
 ftarget = options.ftarget;
 TolStagnationIteration = options.TolStagnationIteration;
@@ -115,8 +117,12 @@ out = initoutput(RecordPoint, D, NP, maxfunevals, ...
 	'muFC');
 
 % Initialize contour data
-if isDisplayIter
+if isPlotting
 	[XX, YY, ZZ] = advcontourdata(D, lb, ub, fitfun);
+else
+	XX = [];
+	YY = [];
+	ZZ = [];
 end
 
 % counteval

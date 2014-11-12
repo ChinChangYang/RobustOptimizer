@@ -19,7 +19,7 @@ end
 
 fPrev = f;
 
-if nargin >= 7
+if nargin >= 7 && ~isempty(XX) && ~isempty(YY) && ~isempty(ZZ)
 	[D, ~] = size(X);
 	[~, ~, cD] = size(XX);
 	
