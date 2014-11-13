@@ -188,10 +188,12 @@ while true
 		counteval = counteval + 1;
 	end
 	
+	penalty = zeros(1, NP);
 	for i = 1 : NP		
-		penalty = 1e10 * std(fx) * norm(XVALID(:, i) - X(:, i));
-		fx(i) = fx(i) + penalty;
+		penalty(i) = 1e10 * std(fx) * norm(XVALID(:, i) - X(:, i));
 	end
+	
+	fx = fx + penalty;
 	
 	% Sort	
 	[fx, fidx] = sort(fx);

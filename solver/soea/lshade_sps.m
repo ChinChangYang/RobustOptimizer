@@ -135,6 +135,11 @@ if isempty(countiter)
 	countiter = 1;
 end
 
+% countstagnation
+if isempty(countstagnation)
+	countstagnation = 0;
+end
+
 % Initialize population
 if isempty(X)
 	X = zeros(D, NP);
