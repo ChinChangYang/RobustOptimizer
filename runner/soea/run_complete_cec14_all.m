@@ -3,7 +3,7 @@ close all;
 
 D = [10, 30, 50];
 
-for iD = 1 : 3
+for iD = 1 : numel(D)
 	measureOptions.Dimension = D(iD);
 	measureOptions.Runs = 28;
 	measureOptions.MaxFunEvals = measureOptions.Dimension * 1e4;
@@ -95,9 +95,9 @@ for iD = 1 : 3
 				end
 			end
 		end
-		
-		metafiledate = datestr(now, 'yyyymmddHHMM');
-		metafilename = sprintf('filenames_%s.mat', metafiledate);
-		save(metafilename, 'filenames');
 	end
+	
+	metafiledate = datestr(now, 'yyyymmddHHMM');
+	metafilename = sprintf('filenames_%s.mat', metafiledate);
+	save(metafilename, 'filenames');
 end
