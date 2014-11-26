@@ -20,6 +20,7 @@ defaultOptions.Display = 'off';
 defaultOptions.Plotting = 'off';
 defaultOptions.RecordPoint = 100;
 defaultOptions.ftarget = -Inf;
+defaultOptions.TolFun = 0;
 defaultOptions.TolStagnationIteration = Inf;
 defaultOptions.usefunevals = inf;
 defaultOptions.initial.X = [];
@@ -62,12 +63,19 @@ end
 if ~isempty(strfind(options.EarlyStop, 'fitness'))
 	EarlyStopOnFitness = true;
 	AutoEarlyStop = false;
+	EarlyStopOnTolFun = false;
 elseif ~isempty(strfind(options.EarlyStop, 'auto'))
 	EarlyStopOnFitness = false;
 	AutoEarlyStop = true;
+	EarlyStopOnTolFun = false;
+elseif ~isempty(strfind(options.EarlyStop, 'TolFun'))	
+	EarlyStopOnFitness = false;
+	AutoEarlyStop = false;
+	EarlyStopOnTolFun = true;
 else
 	EarlyStopOnFitness = false;
 	AutoEarlyStop = false;
+	EarlyStopOnTolFun = false;
 end
 
 if ~isempty(options.initial)
@@ -252,7 +260,7 @@ while true
 	% Termination conditions
 	outofmaxfunevals = counteval > maxfunevals - NP;
 	outofusefunevals = counteval > usefunevals - NP;
-	if ~EarlyStopOnFitness && ~AutoEarlyStop
+	if ~EarlyStopOnFitness && ~AutoEarlyStop && ~EarlyStopOnTolFun
 		if outofmaxfunevals || outofusefunevals
 			break;
 		end
@@ -278,6 +286,13 @@ while true
 		if outofmaxfunevals || ...
 				outofusefunevals || ...
 				reachftarget
+			break;
+		end
+	elseif EarlyStopOnTolFun		
+		functionvalueconvergence = std(fx(:)) <= options.TolFun;
+		if outofmaxfunevals || ...
+				outofusefunevals || ...
+				functionvalueconvergence
 			break;
 		end
 	end
