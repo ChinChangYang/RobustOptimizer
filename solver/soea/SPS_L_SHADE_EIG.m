@@ -93,12 +93,19 @@ end
 if ~isempty(strfind(options.EarlyStop, 'fitness'))
 	EarlyStopOnFitness = true;
 	AutoEarlyStop = false;
+	EarlyStopOnTolFun = false;
 elseif ~isempty(strfind(options.EarlyStop, 'auto'))
 	EarlyStopOnFitness = false;
 	AutoEarlyStop = true;
+	EarlyStopOnTolFun = false;
+elseif ~isempty(strfind(options.EarlyStop, 'TolFun'))	
+	EarlyStopOnFitness = false;
+	AutoEarlyStop = false;
+	EarlyStopOnTolFun = true;
 else
 	EarlyStopOnFitness = false;
 	AutoEarlyStop = false;
+	EarlyStopOnTolFun = false;
 end
 
 if ~isempty(options.initial)
@@ -204,7 +211,7 @@ end
 % Evaluation
 if isempty(fx)
 	fx = zeros(1, NP);
-	for i = 1 : NP
+	parfor i = 1 : NP
 		fx(i) = feval(fitfun, X(:, i));
 		counteval = counteval + 1;
 	end
@@ -301,7 +308,7 @@ if isempty(SP)
 	fSP = fx;
 elseif isempty(fSP)
 	fSP = zeros(1, NP);
-	for i = 1 : NP
+	parfor i = 1 : NP
 		fSP(i) = feval(fitfun, SP(:, i));
 		counteval = counteval + 1;
 	end
@@ -356,6 +363,7 @@ while true
 		stagnation = countstagnation >= TolStagnationIteration;
 		
 		if outofmaxfunevals || ...
+				outofusefunevals || ...
 				reachftarget || ...
 				solutionconvergence || ...
 				functionvalueconvergence || ...
@@ -366,7 +374,15 @@ while true
 		reachftarget = min(fx) <= ftarget;
 		
 		if outofmaxfunevals || ...
+				outofusefunevals || ...
 				reachftarget
+			break;
+		end
+	elseif EarlyStopOnTolFun		
+		functionvalueconvergence = std(fx(:)) <= options.TolFun;
+		if outofmaxfunevals || ...
+				outofusefunevals || ...
+				functionvalueconvergence
 			break;
 		end
 	end
@@ -527,7 +543,7 @@ while true
 	end
 	
 	% Evaluation
-	for i = 1 : NP
+	parfor i = 1 : NP
 		fu(i) = feval(fitfun, U(:, i));
 		counteval = counteval + 1;
 	end
@@ -535,7 +551,7 @@ while true
 	% Noise Handling
 	if noiseHandling
 		index = find(FC > Q);
-		for i = index
+		parfor i = index
 			fx(i) = feval(fitfun, X(:, i));
 		end
 		counteval = counteval + numel(index);
