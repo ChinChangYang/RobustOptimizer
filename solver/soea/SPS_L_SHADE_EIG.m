@@ -350,7 +350,7 @@ while true
 	% Termination conditions
 	outofmaxfunevals = counteval > maxfunevals - NP;
 	outofusefunevals = counteval > usefunevals - NP;
-	if ~EarlyStopOnFitness && ~AutoEarlyStop
+	if ~EarlyStopOnFitness && ~AutoEarlyStop && ~EarlyStopOnTolFun
 		if outofmaxfunevals || outofusefunevals
 			break;
 		end
