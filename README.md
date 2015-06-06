@@ -22,7 +22,7 @@ Basically, the aim of this project is to find the best algorithm (solver) that c
 * Covariance Matrix Adaptation Evolution Strategy and 
 * Differential Evolution. 
 
-A robustness measure is developed to determine the most best solver. Currently, these solvers are tested on a set of 28 and 24 benchmark functions in CEC'13 and BBOB'12, respectively, including 
+A robustness measure is developed to determine the most best solver. For single-objective real-parameter optimization, these solvers are currently tested on a set of 30 benchmark functions in CEC'14, including 
 
 * Unimodal functions,  
 * Multimodal functions, and
@@ -44,6 +44,7 @@ Feature
 * Rank-based DE (RBDE)
 * SHADE
 * Eigenvector-based crossover operator
+* Successful-parent-selecting framework
  
 ### Benchmark
 * CEC 2005 benchmark
