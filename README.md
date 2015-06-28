@@ -45,8 +45,7 @@ Feature
 * SHADE
 * L-SHADE
 * DEsPA
-* Eigenvector-based crossover operator
-* Successful-parent-selecting framework
+* SPS-L-SHADE-EIG
  
 ### Benchmark
 * CEC 2005 benchmark
