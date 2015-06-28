@@ -56,18 +56,18 @@ defaultOptions.Noise = false;
 
 options = setdefoptions(options, defaultOptions);
 p = options.p;
-H = options.H;
+H = round(options.H);
 Q = options.Q;
 fw = options.fw;
 cw = options.cw;
 Ar = options.Ar;
-NPinit = options.NP;
+NPinit = round(options.NP);
 cwinit = options.cw;
 crw = options.crw;
 erw = options.erw;
 CRmin = options.CRmin;
 CRmax = options.CRmax;
-NPmin = options.NPmin;
+NPmin = round(options.NPmin);
 usefunevals = options.usefunevals;
 isDisplayIter = strcmp(options.Display, 'iter');
 isPlotting = isequal(options.Plotting, 'iter');
@@ -153,7 +153,7 @@ end
 
 D = numel(lb);
 if isempty(X)
-	NP = options.NP;
+	NP = round(options.NP);
 else
 	[~, NP] = size(X);
 end
@@ -211,7 +211,7 @@ end
 % Evaluation
 if isempty(fx)
 	fx = zeros(1, NP);
-	parfor i = 1 : NP
+	for i = 1 : NP
 		fx(i) = feval(fitfun, X(:, i));
 		counteval = counteval + 1;
 	end
@@ -308,7 +308,7 @@ if isempty(SP)
 	fSP = fx;
 elseif isempty(fSP)
 	fSP = zeros(1, NP);
-	parfor i = 1 : NP
+	for i = 1 : NP
 		fSP(i) = feval(fitfun, SP(:, i));
 		counteval = counteval + 1;
 	end
@@ -543,7 +543,7 @@ while true
 	end
 	
 	% Evaluation
-	parfor i = 1 : NP
+	for i = 1 : NP
 		fu(i) = feval(fitfun, U(:, i));
 		counteval = counteval + 1;
 	end
@@ -551,7 +551,7 @@ while true
 	% Noise Handling
 	if noiseHandling
 		index = find(FC > Q);
-		parfor i = index
+		for i = index
 			fx(i) = feval(fitfun, X(:, i));
 		end
 		counteval = counteval + numel(index);
