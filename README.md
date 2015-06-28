@@ -6,7 +6,7 @@ The most robust algorithm for global optimization problems
 Goal
 ----
 
-* Single-objective real-parameter optimization
+* Single-objective real-parameter optimization (main)
 * Multi-objective real-parameter optimization
 * Min-max real-parameter optimization
 * Noisy optimization
@@ -43,6 +43,8 @@ Feature
 * D-CMA-EA
 * Rank-based DE (RBDE)
 * SHADE
+* L-SHADE
+* DEsPA
 * Eigenvector-based crossover operator
 * Successful-parent-selecting framework
  
@@ -52,6 +54,7 @@ Feature
 * BBOB 2012 benchmark
 * CEC 2013 benchmark
 * CEC 2014 benchmark
+* CEC 2015 benchmark
  
 ### Measure
 * Solution error
