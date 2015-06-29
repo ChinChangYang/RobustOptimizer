@@ -34,47 +34,85 @@ solverOptions.Noise = false;
 solverOptions.EarlyStop = 'fitness';
 
 % Sensitivity analysis parameters
-% parameter = 'NP';
-% parameter_lb = solverOptions.NPmin;
-% parameter_ub = 2500;
+parameter_set = { ...
+    'NP', ...
+    'F', ...
+    'CR', ...
+    'ER', ...
+    'p', ...
+    'H', ...
+    'Q', ...
+    'Ar', ...
+    'cw', ...
+    'erw', ...
+    'CRmin', ...
+    'CRmax', ...
+    'NPmin', ...
+    'crw', ...
+    'fw', ...
+    };
 
-% parameter = 'NPmin';
-% parameter_lb = 4;
-% parameter_ub = solverOptions.NP;
+parameter_lbs = [...
+    solverOptions.NPmin, ... % NP
+    eps, ... % F
+    eps, ... % CR
+    eps, ... % ER
+    eps, ... % p
+    1,   ... % H
+    0,   ... % Q
+    1,   ... % Ar
+    eps, ... % cw
+    eps, ... % erw
+    eps, ... % CRmin
+    solverOptions.CRmin, ... % CRmax
+    4,   ... % NPmin
+    eps, ... % crw
+    eps, ... % fw
+    ];
 
-% parameter = 'Ar';
-% parameter_lb = 1;
-% parameter_ub = 4;
-
-parameter = 'erw';
-parameter_lb = eps;
-parameter_ub = 1;
-
-if parameter_ub < solverOptions.(parameter)
-    parameter_ub = max(0, solverOptions.(parameter) * 2);
-end
+parameter_ubs = [...
+    2500, ... % NP
+    1, ... % F
+    1, ... % CR
+    1, ... % ER
+    1, ... % p
+    2500, ... % H
+    2500, ... % Q
+    10,   ... % Ar
+    1, ... % cw
+    1, ... % erw
+    solverOptions.CRmax, ... % CRmin
+    1, ... % CRmax
+    solverOptions.NP, ... % NPmin
+    1, ... % crw
+    1, ... % fw
+    ];
 
 % Estimate sensitivity
-[X, Y, meanfmin, stdfmin] = sensitivity( ...
+[SX, SY, SMF, SSF] = sensitivity( ...
     solver, ...
     fitfun, ...
     lb, ...
     ub, ...
     maxfunevals, ...
     solverOptions, ...
-    parameter, ...
-    parameter_lb, ...
-    parameter_ub);
+    parameter_set, ...
+    parameter_lbs, ...
+    parameter_ubs);
 
-% Plot sensitivity analysis result
-plot(X, Y);
-hold on;
-plot(X, repmat(meanfmin - stdfmin, 1, 5), 'r');
-plot(X, repmat(meanfmin + stdfmin, 1, 5), 'r');
-hold off;
-
-title(sprintf('Sensitivity Analysis of %s on %s', solver, fitfun), ...
-    'Interpreter','none');
-
-xlabel(parameter);
-ylabel('Solution Error');
+% Plot sensitivity analysis results
+for i = 1 : numel(SMF)
+    figure(i);
+        
+    plot(SX(:, i), SY(:, i));
+    hold on;
+    plot(SX(:, i), repmat(SMF(i) - SSF(i), 1, 5), 'r');
+    plot(SX(:, i), repmat(SMF(i) + SSF(i), 1, 5), 'r');
+    hold off;
+    
+    title(sprintf('Sensitivity Analysis of %s on %s', solver, fitfun), ...
+        'Interpreter','none');
+    
+    xlabel(parameter_set{i});
+    ylabel('Solution Error');
+end
