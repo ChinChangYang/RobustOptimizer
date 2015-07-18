@@ -235,18 +235,18 @@ end
 
 % Initialize archive
 if isempty(A)
-	Asize = round(Ar * NP);
+	Asize = max(2, round(Ar * NP));
 	A = zeros(D, Asize);
 	for i = 1 : Asize
 		A(:, i) = lb + (ub - lb) .* rand(D, 1);
 	end
 else
 	[~, Asize] = size(A);
-	if Asize > round(Ar * NP)
-		Asize = round(Ar * NP);
+	if Asize > max(2, round(Ar * NP))
+        Asize = max(2, round(Ar * NP));
 		A = A(:, 1 : Asize);
-	elseif Asize < round(Ar * NP)
-		Asize = round(Ar * NP);
+	elseif Asize < max(2, round(Ar * NP))
+        Asize = max(2, round(Ar * NP));
 		A = zeros(D, Asize);
 		for i = 1 : Asize
 			A(:, i) = lb + (ub - lb) .* rand(D, 1);
@@ -671,7 +671,7 @@ while true
     fx = fx(1 : NP);
     X = X(:, 1 : NP);
 	U = U(:, 1 : NP);
-    Asize = round(Ar * NP);	
+    Asize = max(2, round(Ar * NP));
 	if nA > Asize
 		nA = Asize;
 		A = A(:, 1 : Asize);

@@ -1,31 +1,37 @@
+% Parallel
+p = gcp('nocreate');
+if isempty(p)
+    parpool;
+end
+
 % Common control
 clear;
 close all;
 
 % Experiment settings
 solver = 'SPS_L_SHADE_EIG';
-fitfun = 'cec15_f3';
-D = 10;
+fitfun = 'cec15_f1';
+D = 30;
 maxfunevals = D * 1e4;
 lb = -100 * ones(D, 1);
 ub = 100 * ones(D, 1);
 
 % Parameter baseline
-solverOptions.NP = 9 + 155;
-solverOptions.F = 0.4085;
-solverOptions.CR = 0.1980;
-solverOptions.ER = 0.3172;
-solverOptions.p = 0.2230;
-solverOptions.H = 431;
-solverOptions.Q = 151;
-solverOptions.Ar = 1.7238;
-solverOptions.cw = 0.1720;
-solverOptions.erw = 0.1717;
-solverOptions.CRmin = 0.0100;
-solverOptions.CRmax = 0.0100 + 0.9248;
-solverOptions.NPmin = 9;
-solverOptions.crw = 0.9933;
-solverOptions.fw = 0.4899;
+solverOptions.NP = 75 + 345;
+solverOptions.F = 0.4076;
+solverOptions.CR = 0.6209;
+solverOptions.ER = 0.1399;
+solverOptions.p = 0.1340;
+solverOptions.H = 90;
+solverOptions.Q = 194;
+solverOptions.Ar = 1.9630;
+solverOptions.cw = 0.0581;
+solverOptions.erw = 0.6807;
+solverOptions.CRmin = 0.3046;
+solverOptions.CRmax = 0.3046 + 0.5189;
+solverOptions.NPmin = 75;
+solverOptions.crw = 0.2079;
+solverOptions.fw = 0.3530;
 
 % Common parameters
 solverOptions.ftarget = 1e-8;
@@ -58,9 +64,9 @@ parameter_lbs = [...
     eps, ... % CR
     eps, ... % ER
     eps, ... % p
-    1,   ... % H
+    2,   ... % H
     0,   ... % Q
-    1,   ... % Ar
+    0,   ... % Ar
     eps, ... % cw
     eps, ... % erw
     eps, ... % CRmin
@@ -71,13 +77,13 @@ parameter_lbs = [...
     ];
 
 parameter_ubs = [...
-    2500, ... % NP
+    3000, ... % NP
     1, ... % F
     1, ... % CR
     1, ... % ER
     1, ... % p
-    2500, ... % H
-    2500, ... % Q
+    3000, ... % H
+    3000, ... % Q
     10,   ... % Ar
     1, ... % cw
     1, ... % erw
@@ -89,7 +95,7 @@ parameter_ubs = [...
     ];
 
 % Estimate sensitivity
-[SX, SY, SMF, SSF] = sensitivity( ...
+[SX, SY, meanfmin, stdfmin] = sensitivity( ...
     solver, ...
     fitfun, ...
     lb, ...
@@ -101,13 +107,13 @@ parameter_ubs = [...
     parameter_ubs);
 
 % Plot sensitivity analysis results
-for i = 1 : numel(SMF)
+for i = 1 : numel(parameter_set)
     figure(i);
         
     plot(SX(:, i), SY(:, i));
     hold on;
-    plot(SX(:, i), repmat(SMF(i) - SSF(i), 1, 5), 'r');
-    plot(SX(:, i), repmat(SMF(i) + SSF(i), 1, 5), 'r');
+    plot(SX(:, i), repmat(meanfmin - stdfmin, 1, 5), 'r');
+    plot(SX(:, i), repmat(meanfmin + stdfmin, 1, 5), 'r');
     hold off;
     
     title(sprintf('Sensitivity Analysis of %s on %s', solver, fitfun), ...
