@@ -76,6 +76,18 @@ ftarget = options.ftarget;
 TolStagnationIteration = options.TolStagnationIteration;
 noiseHandling = options.Noise;
 
+% Fix conflict parameters
+if NPinit < NPmin
+%     NPinit = NPmin;
+    NPmin = NPinit;
+end
+
+if CRmax < CRmin
+%     CRmin = CRmax;
+    CRmax = CRmin;
+end
+
+% Constraint options
 if isequal(options.ConstraintHandling, 'Interpolation')
 	interpolation = true;
 else
