@@ -1,8 +1,9 @@
 %TESTSPECIFICRUN Test a specific experiment of certain solver, test
 %function, maximal function evaluations.
-startTime = tic;
 clear;
 close all;
+startTime = tic;
+
 % rng('default');
 % load('InitialX.mat');
 % load('InitialX_CEC11.mat');
@@ -38,38 +39,43 @@ close all;
 % solver = 'umoeas_b';
 % solver = 'umoeas_c';
 % solver = 'moeas_a';
-solver = 'SPS_L_SHADE_EIG';
+% solver = 'SPS_L_SHADE_EIG';
 % solver = 'eapps_a';
 % solver = 'despa';
-fitfun = 'cec15_f1';
-D = 100;
-maxfunevals = D * 1e4;
+solver = 'lshade_sps_eig_l';
+fitfun = 'cec11_f13';
+D = 22;
+% maxfunevals = D * 1e4;
+maxfunevals = 2e8;
 solverOptions.nonlcon = [];
 % solverOptions.NP = 4 + floor(3 * log(D));
-solverOptions.NP = 244 + 362;
-solverOptions.F = 0.6177;
-solverOptions.CR = 0.4542;
-solverOptions.ER = 0.9499;
-solverOptions.p = 0.1261;
-solverOptions.H = 26;
-solverOptions.Q = 1475;
-solverOptions.Ar = 3.0795;
-solverOptions.cw = 0.0589;
-solverOptions.erw = 0.0043;
-solverOptions.CRmin = 0.1441;
-solverOptions.CRmax = 0.1441 + 0.4944;
-solverOptions.NPmin = 362;
-solverOptions.crw = 0.2692;
-solverOptions.fw = 0.0023;
+solverOptions.NP = 4000;
+solverOptions.F = 0.9;
+solverOptions.CR = 0.1;
+solverOptions.ER = 0.1;
+solverOptions.p = 0.5;
+solverOptions.H = 60;
+solverOptions.Q = 512;
+solverOptions.Ar = 2.6;
+solverOptions.cw = 0.3;
+solverOptions.erw = 0.02;
+solverOptions.CRmin = 0.05;
+solverOptions.CRmax = 0.25;
+solverOptions.NPmin = 2*D;
+solverOptions.crw = 0.1;
+solverOptions.fw = 0.1;
+solverOptions.Fmin = 0.7;
 % solverOptions.NPmax = 15 * D;
 % solverOptions.M = 10;
 
 solverOptions.ftarget = 1e-8;
+solverOptions.TolFun  = 1e-10;
 solverOptions.Restart = 0;
 solverOptions.Display = 'off';
 % solverOptions.RecordPoint = 201;
 solverOptions.Noise = false;
-solverOptions.EarlyStop = 'fitness';
+% solverOptions.EarlyStop = 'fitness';
+solverOptions.EarlyStop = 'TolFun';
 % solverOptions.ConstraintHandling = 'none';
 % solverOptions.ConstraintHandling = 'Interpolation';
 % solverOptions.ConstraintHandling = 'EpsilonMethod';
@@ -81,13 +87,14 @@ solverOptions.EarlyStop = 'fitness';
 % 	solverOptions.NP));
 % lb = -5 * ones(D, 1);
 % ub = 5 * ones(D, 1);
-lb = -100 * ones(D, 1);
-ub = 100 * ones(D, 1);
+% lb = -100 * ones(D, 1);
+% ub = 100 * ones(D, 1);
 % lb = -6.4 * ones(D, 1);
 % ub = 6.35 * ones(D, 1);
 % lb = zeros(20, 1);
 % ub = 4 * pi * ones(20, 1);
 % [lb, ub] = getlimit_messenger;
+[lb, ub] = getlimit_cassini2;
 % solverOptions.initial.X = ...
 % 	repmat(lb, 1, solverOptions.NP) + ...
 % 	repmat(ub - lb, 1, solverOptions.NP) .* ...
@@ -460,4 +467,13 @@ if isfield(out, 'xstd2')
 % 	print(sprintf('%s.tiff', fitfun), '-dtiff');
 end
 
-% toc(startTime);
+if isfield(out, 'succRate')
+	figure;
+	plot(out.fes, out.succRate);
+	title(sprintf('Solve %s by %s', fitfun, solver),'Interpreter','none');
+	xlabel('FEs');
+	ylabel('succRate');
+% 	print(sprintf('%s.tiff', fitfun), '-dtiff');
+end
+
+toc(startTime);
