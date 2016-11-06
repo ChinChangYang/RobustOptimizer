@@ -97,7 +97,19 @@ options.Noise	= true;
 [xmin, fmin, out] = ...
 	feval(solver, fitfun, lb, ub, maxfes, options); %#ok<ASGLU>
 
-filename = sprintf('optimize_de_result_D%df%d.mat', D, fnum);
+% save output to file
+if (exist('out', 'dir') ~= 7)
+    mkdir('out');
+end
+
+folder = sprintf('out/%s', solver);
+if (exist(folder, 'dir') ~= 7)
+    mkdir(folder);
+end
+
+filename = sprintf('%s/optimize_de_result_D%df%d.mat', ...
+    folder, D, fnum);
+
 save(filename, 'xmin', 'fmin', 'out', 'solver', 'fitfun', 'lb', 'ub', ...
 	'maxfes', 'options');
 
